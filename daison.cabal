@@ -1,0 +1,16 @@
+name:                daison
+version:             0.1.0.0
+build-type:          Simple
+cabal-version:       >=1.10
+
+library
+  exposed-modules:     Database.Daison
+  other-modules:       Database.Daison.FFI
+                       Database.Daison.Serialize
+  build-depends:       base, binary, syb, bytestring, containers
+  default-language:    Haskell2010
+  build-tools:         hsc2hs
+  c-sources:           c/sqlite3Btree.c
+  include-dirs:        /Users/pugzera/Desktop/daison-master/c
+  hs-source-dirs:      haskell
+  extra-libraries: pthread
