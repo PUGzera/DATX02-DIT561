@@ -8,6 +8,7 @@ import DynFlags
 import Outputable
 import GhcMonad
 import GHC.IO
+import GHC.GHCi
 
 import Exception
 
@@ -23,10 +24,22 @@ instance GhcMonad Daison where
 run :: Daison ()
 run = do 
   stmt <- GhcMonad.liftIO getLine
-  res <- compileExpr stmt
+  res <- runStmt stmt RunAndLogSteps
+  case res of
+    ExecComplete execResult execAllocation -> return ()
+    ExecBreak breakNames breakInfo -> return ()
+    _ -> return ()
+
   GhcMonad.liftIO $ print "log"
-  GhcMonad.liftIO $print res
+  -- GhcMonad.liftIO $ print res
   return ()
+
+
+runStmt
+  :: String -> SingleStep -> Daison GHC.ExecResult
+runStmt stmt ss = do
+  let options = execOptions{execSingleStep=ss}
+  execStmt stmt options
 
 people_name :: Index (String,Int) String
 people_name = index people "name" fst
