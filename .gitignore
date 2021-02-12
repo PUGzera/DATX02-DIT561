@@ -1,2 +1,3 @@
 *.cabal
 .DS_Store
+doc/
