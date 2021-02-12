@@ -20453,7 +20453,7 @@ static int winOpenSharedMemory(winFile *pDbFd){
     /* TBD need to come up with better match here.  Perhaps
     ** use FILE_ID_BOTH_DIR_INFO Structure.
     */
-    if( sqlite3StrICmp(pShmNode->zFilename, pNew->zFilename)==0 ) break;
+    if( stricmp(pShmNode->zFilename, pNew->zFilename)==0 ) break;
   }
   if( pShmNode ){
     sqlite3_free(pNew);
@@ -21695,9 +21695,6 @@ static int winOpen(
   pFile->h = h;
   if( isReadonly ){
     pFile->ctrlFlags |= WINFILE_RDONLY;
-  }
-  if( sqlite3_uri_boolean(zName, "psow", SQLITE_POWERSAFE_OVERWRITE) ){
-    pFile->ctrlFlags |= WINFILE_PSOW;
   }
   pFile->lastErrno = NO_ERROR;
   pFile->zPath = zName;

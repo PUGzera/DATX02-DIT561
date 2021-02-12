@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeFamilies, MultiParamTypeClasses, BangPatterns #-}
+{-# LANGUAGE TypeFamilies, MultiParamTypeClasses, BangPatterns, CPP #-}
 module Database.Daison
             ( Database, openDB, closeDB
 
@@ -160,7 +160,9 @@ instance Applicative Daison where
   f <*> g = Daison (\db -> doTransaction f db <*> doTransaction g db)
 
 instance Monad Daison where
+#if !MIN_VERSION_base(4,13,0)
   fail msg = Daison (\db -> Fail.fail msg)
+#endif
   return x = Daison (\db -> return x)
   f >>= g  = Daison (\db -> doTransaction f db >>= \x -> doTransaction (g x) db)
 
@@ -507,7 +509,9 @@ instance Alternative Query where
   f <|> g = mplus f g
 
 instance Monad Query where
+#if !MIN_VERSION_base(4,13,0)
   fail _    = mzero
+#endif
   return x  = Query (\pBtree schema  -> return (Output x nilQSeq done))
   f >>= g   = Query (\pBtree schema  -> doQuery f pBtree schema  >>= loop pBtree schema)
     where
