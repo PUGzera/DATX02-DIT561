@@ -11,6 +11,6 @@ library
   default-language:    Haskell2010
   build-tools:         hsc2hs
   c-sources:           c/sqlite3Btree.c
-  include-dirs:        /Users/pugzera/Desktop/daison-master/c
+  include-dirs:        c
   hs-source-dirs:      haskell
   extra-libraries: pthread
