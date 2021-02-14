@@ -1,3 +1,5 @@
 *.cabal
 .DS_Store
 doc/
+.hi
+.o
