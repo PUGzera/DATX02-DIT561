@@ -4,3 +4,4 @@ doc/
 .hi
 .o
 dist-newstyle/
+*.iml
