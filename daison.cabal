@@ -7,10 +7,10 @@ library
   exposed-modules:     Database.Daison
   other-modules:       Database.Daison.FFI
                        Database.Daison.Serialize
-  build-depends:       base, binary, syb, bytestring, containers
+  build-depends:       base, binary, syb, bytestring, containers, ghc-paths
   default-language:    Haskell2010
   build-tools:         hsc2hs
   c-sources:           c/sqlite3Btree.c
-  include-dirs:        c
+  include-dirs:        /Users/pugzera/IdeaProjects/DATX02-DIT561/c
   hs-source-dirs:      haskell
   extra-libraries: pthread

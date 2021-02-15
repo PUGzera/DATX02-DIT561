@@ -29,7 +29,7 @@ daisonModuleName  = GHC.mkModuleName "Database.Daison"
 --runGhcDaison :: GHC.GhcMonad a -> IO a
 runGhcDaison = GHC.runGhc (Just GHC.libdir)
 
-loadModules :: GHC.GhcMonad m => [GHC.InteractiveImport] -> m ()
+loadModules :: [GHC.InteractiveImport] -> Daison ()
 loadModules is = do
   ctx <- GHC.getContext
   GHC.setContext (is ++ ctx)
