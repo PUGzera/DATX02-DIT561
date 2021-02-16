@@ -17,17 +17,17 @@ data DaisonState = DaisonState {
     db :: String
 }
 
-data DasionI a = DaisonI { exec :: DaisonState -> GHC.Ghc a }
+data DaisonI a = DaisonI { exec :: DaisonState -> GHC.Ghc a }
 
 preludeModuleName, daisonModuleName :: GHC.ModuleName
 preludeModuleName = GHC.mkModuleName "Prelude"
 daisonModuleName  = GHC.mkModuleName "Database.Daison"
 
 
-runGhc :: DaisonState -> DasionI a -> IO a
+runGhc :: DaisonState -> DaisonI a -> IO a
 runGhc state ds = GHC.runGhc (Just GHC.libdir) ((exec ds) state)
 
-loadModules :: [GHC.InteractiveImport] -> DasionI ()
+loadModules :: [GHC.InteractiveImport] -> DaisonI ()
 loadModules is = DaisonI $ \st -> do
   ctx <- GHC.getContext
   GHC.setContext (is ++ ctx)
@@ -38,7 +38,7 @@ makeIIModule = GHC.IIModule
 makeIIDecl :: GHC.ModuleName -> GHC.InteractiveImport
 makeIIDecl = GHC.IIDecl . GHC.simpleImportDecl
 
-runStmt :: String -> DasionI (Maybe GHC.ExecResult)
+runStmt :: String -> DaisonI (Maybe GHC.ExecResult)
 runStmt stmt = DaisonI $ \st -> do
       dflags <- GHC.getSessionDynFlags
       GHC.setSessionDynFlags dflags
