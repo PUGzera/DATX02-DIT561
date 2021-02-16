@@ -1,7 +1,32 @@
+# sorted default .gitignore from github/gitignore/Haskell.gitignore
+*.aux
+*.chi
+*.chs.h
+*.dyn_hi
+*.dyn_o
+*.eventlog
+*.hi
+*.hie
+*.hp
+*.o
+*.prof
+.cabal-sandbox/
+.ghc.environment.*
+.hpc
+.hsenv
+.HTF/
+.stack-work/
+cabal-dev
+cabal.project.local
+cabal.sandbox.config
+dist
+dist-*
+.ghc.environment.*
+.ghci
+
+# Project specific patterns
 *.cabal
 .DS_Store
 doc/
-.hi
-.o
-dist-newstyle/
+test.db
 *.iml
