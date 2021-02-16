@@ -7,13 +7,16 @@ import qualified GHCInterface as GHC
 import Control.Exception
 
 import Prelude
+
 import Base
 import Context
 
-runStmt :: String -> IO (Maybe GHC.ExecResult)
-runStmt stmt =
-  -- GHC.defaultErrorHandler GHC.defaultFatalMessager GHC.defaultFlushOut $ do
-    runGhc $ do
+-- | Run statements from Prelude and Daison in the 'Ghc' monad.
+-- To run statements in the 'IO' monad, do `liftIO $ runGhc $ runStmt stmt`.
+--
+-- TODO: Save expressions and variables in memory between sessions.
+runStmt :: String -> GHC.Ghc (Maybe GHC.ExecResult)
+runStmt stmt = do
       dflags <- GHC.getSessionDynFlags
       GHC.setSessionDynFlags dflags
 
