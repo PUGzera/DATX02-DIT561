@@ -5,14 +5,26 @@ module Base (
 
 import qualified GHCInterface as GHC
 
+import Database.Daison
+
 import qualified Control.Exception as E
+
+import Data.IORef
+
+
+data DaisonState = DaisonState {
+    mode :: AccessMode,
+    db :: Database
+}
+
+type DaisonStateRef = IORef DaisonState
+
+data DaisonI a = DaisonI { unwrap :: DaisonStateRef -> GHC.Ghc a }
 
 preludeModuleName, daisonModuleName :: GHC.ModuleName
 preludeModuleName = GHC.mkModuleName "Prelude"
 daisonModuleName  = GHC.mkModuleName "Database.Daison"
 
-runGhcDaison :: GHC.Ghc ()
-runGhcDaison = GHC.initGhcMonad (Just GHC.libdir)
 
 runGhc :: GHC.Ghc a -> IO a
 runGhc = GHC.runGhc (Just GHC.libdir)
@@ -42,8 +54,3 @@ runStmt stmt = do
         GHC.ExecComplete {GHC.execResult = Left e}  -> E.throw e
         _                                           -> Nothing
 
-
-main :: IO ()
-main = do
-    runGhc (runStmt "openDB \"hej.db\"")
-    return ()
