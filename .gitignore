@@ -28,5 +28,5 @@ dist-*
 *.cabal
 .DS_Store
 doc/
-test.db
+*.db
 *.iml
