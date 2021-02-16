@@ -4,26 +4,23 @@ module Eval (
 
 import qualified GHCInterface as GHC
 
-import Control.Exception
+import qualified Control.Exception as E
 
 import Prelude
 
 import Base
 import Context
 
--- | Run statements from Prelude and Daison in the 'Ghc' monad.
--- To run statements in the 'IO' monad, do `liftIO $ runGhc $ runStmt stmt`.
---
--- TODO: Save expressions and variables in memory between sessions.
-runStmt :: String -> GHC.Ghc (Maybe GHC.ExecResult)
-runStmt stmt = do
+-- | Run statements from Prelude and Daison in the 'DaisonI' monad.
+runStmt :: String -> DaisonI (Maybe GHC.ExecResult)
+runStmt stmt = DaisonI $ \st -> do
       dflags <- GHC.getSessionDynFlags
       GHC.setSessionDynFlags dflags
 
-      loadModules $ map makeIIDecl [preludeModuleName, daisonModuleName]
+      exec (loadModules $ map makeIIDecl [preludeModuleName, daisonModuleName]) st
 
       res <- GHC.execStmt stmt GHC.execOptions
       return $ case res of
         GHC.ExecComplete {GHC.execResult = Right _} -> Just res
-        GHC.ExecComplete {GHC.execResult = Left e}  -> throw e
+        GHC.ExecComplete {GHC.execResult = Left e}  -> E.throw e
         _                                           -> Nothing

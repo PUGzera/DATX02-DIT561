@@ -6,8 +6,10 @@ module Context (
 
 import qualified GHC as GHC
 
-loadModules :: GHC.GhcMonad m => [GHC.InteractiveImport] -> m ()
-loadModules is = do
+import Base
+
+loadModules :: [GHC.InteractiveImport] -> DaisonI ()
+loadModules is = DaisonI $ \st -> do
   ctx <- GHC.getContext
   GHC.setContext (is ++ ctx)
 
