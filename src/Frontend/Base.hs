@@ -21,13 +21,13 @@ instance GHC.GhcMonad Daison where
   setSession = GHC.setSession
 
 
-
 preludeModuleName, daisonModuleName :: GHC.ModuleName
 preludeModuleName = GHC.mkModuleName "Prelude"
 daisonModuleName  = GHC.mkModuleName "Database.Daison"
 
---runGhcDaison :: GHC.GhcMonad a -> IO a
-runGhcDaison = GHC.runGhc (Just GHC.libdir)
+runGhcDaison :: Daison ()
+runGhcDaison = GHC.initGhcMonad (Just GHC.libdir)
+
 
 loadModules :: [GHC.InteractiveImport] -> Daison ()
 loadModules is = do
@@ -52,3 +52,4 @@ runStmt stmt = do
         GHC.ExecComplete {GHC.execResult = Right _} -> Just res
         GHC.ExecComplete {GHC.execResult = Left e}  -> E.throw e
         _                                           -> Nothing
+
