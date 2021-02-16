@@ -15,12 +15,18 @@ data DaisonState = DaisonState {
     db :: String
 }
 
-data DaisonI a = DaisonI { exec :: DaisonState -> GHC.Ghc a }
+data DaisonI a = DaisonI { exec :: DaisonState -> GHC.Ghc (a, DaisonState) }
+
+getState :: DaisonI DaisonState
+getState = DaisonI $ \st -> return (st, st)
+
+modifyState :: (DaisonState -> DaisonState) -> DaisonI ()
+modifyState f = DaisonI $ \st -> return ((), f st)
 
 instance Monad DaisonI where
-    return x  = DaisonI $ \st -> return x
+    return x  = DaisonI $ \st -> return (x, st)
     (>>=) x f = DaisonI $ \st -> do
-        v <- (exec x) st
+        (v, _) <- (exec x) st
         (exec (f v)) st
 
 instance Applicative DaisonI where
@@ -36,5 +42,5 @@ preludeModuleName, daisonModuleName :: GHC.ModuleName
 preludeModuleName = GHC.mkModuleName "Prelude"
 daisonModuleName  = GHC.mkModuleName "Database.Daison"
 
-runGhc :: DaisonState -> DaisonI a -> IO a
+runGhc :: DaisonState -> DaisonI a -> IO (a, DaisonState)
 runGhc state ds = GHC.runGhc (Just GHC.libdir) ((exec ds) state)
