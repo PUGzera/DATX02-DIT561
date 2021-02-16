@@ -5,31 +5,19 @@ module Base (
 
 import qualified GHCInterface as GHC
 
-import Database.Daison
-
 import qualified Control.Exception as E
-
-instance GHC.HasDynFlags Daison where
-    getDynFlags = GHC.getDynFlags
-
-instance GHC.ExceptionMonad Daison where
-    gcatch = GHC.gcatch
-    gmask = GHC.gmask
-
-instance GHC.GhcMonad Daison where
-  getSession = GHC.getSession
-  setSession = GHC.setSession
-
 
 preludeModuleName, daisonModuleName :: GHC.ModuleName
 preludeModuleName = GHC.mkModuleName "Prelude"
 daisonModuleName  = GHC.mkModuleName "Database.Daison"
 
-runGhcDaison :: Daison ()
+runGhcDaison :: GHC.Ghc ()
 runGhcDaison = GHC.initGhcMonad (Just GHC.libdir)
 
+runGhc :: GHC.Ghc a -> IO a
+runGhc = GHC.runGhc (Just GHC.libdir)
 
-loadModules :: [GHC.InteractiveImport] -> Daison ()
+loadModules :: [GHC.InteractiveImport] -> GHC.Ghc ()
 loadModules is = do
   ctx <- GHC.getContext
   GHC.setContext (is ++ ctx)
@@ -40,16 +28,22 @@ makeIIModule = GHC.IIModule
 makeIIDecl :: GHC.ModuleName -> GHC.InteractiveImport
 makeIIDecl = GHC.IIDecl . GHC.simpleImportDecl
 
-runStmt :: String -> Daison (Maybe GHC.ExecResult)
+runStmt :: String -> GHC.Ghc (Maybe GHC.ExecResult)
 runStmt stmt = do
       dflags <- GHC.getSessionDynFlags
       GHC.setSessionDynFlags dflags
-
+      GHC.liftIO $ print "step 1"
       loadModules $ map makeIIDecl [preludeModuleName, daisonModuleName]
-
+      GHC.liftIO $ print "step 2"
       res <- GHC.execStmt stmt GHC.execOptions
+      GHC.liftIO $ print "step 3"
       return $ case res of
         GHC.ExecComplete {GHC.execResult = Right _} -> Just res
         GHC.ExecComplete {GHC.execResult = Left e}  -> E.throw e
         _                                           -> Nothing
 
+
+main :: IO ()
+main = do
+    runGhc (runStmt "openDB \"hej.db\"")
+    return ()
