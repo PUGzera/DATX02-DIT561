@@ -97,3 +97,14 @@ makeIIModule = GHC.IIModule
 
 makeIIDecl :: GHC.ModuleName -> GHC.InteractiveImport
 makeIIDecl = GHC.IIDecl . GHC.simpleImportDecl
+
+run :: IO ()
+run = do
+    print "write DB name"
+    dbName <- getLine
+    let state = DaisonState ReadWriteMode dbName
+    runGhc state $ do
+        st <- getState
+        runStmt $ "db <- openDB \"" ++ db st ++ ".db\""
+        readQuery --Todo: make sure to use runDaison db mode then every query
+    return ()
