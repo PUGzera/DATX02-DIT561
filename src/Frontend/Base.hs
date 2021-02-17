@@ -5,7 +5,8 @@ module Base (
   daisonModuleName,
   runGhc,
   getState,
-  modifyState
+  modifyState,
+  liftGhc
 ) where
 
 import qualified GHCInterface as GHC
@@ -13,6 +14,9 @@ import qualified GHCInterface as GHC
 import Database.Daison
 
 import Control.Monad.IO.Class
+
+import qualified Control.Exception as E
+
 
 data DaisonState = DaisonState {
     mode :: AccessMode,
@@ -57,3 +61,39 @@ daisonModuleName  = GHC.mkModuleName "Database.Daison"
 runGhc :: DaisonState -> DaisonI a -> IO (a, DaisonState)
 runGhc state ds = GHC.runGhc (Just GHC.libdir) ((exec ds) state)
 
+test :: IO ()
+test = do
+    runGhc (DaisonState ReadWriteMode "") (runStmt "openDB \"hej.db\"")
+    return ()
+
+runStmt :: String -> DaisonI (Maybe GHC.ExecResult)
+runStmt stmt = do
+      dflags <- liftGhc GHC.getSessionDynFlags
+      liftGhc $ GHC.setSessionDynFlags dflags
+
+      loadModules $ map makeIIDecl [preludeModuleName, daisonModuleName]
+
+      res <- liftGhc $ GHC.execStmt stmt GHC.execOptions
+      return $ case res of
+        GHC.ExecComplete {GHC.execResult = Right _} -> (Just res)
+        GHC.ExecComplete {GHC.execResult = Left e}  -> E.throw e
+        _                                           -> (Nothing)
+
+readQuery :: DaisonI ()
+readQuery = do
+    st <- getState --use to get db and access mode later
+    query <- GHC.liftIO getLine
+    res <- runStmt query
+    return ()
+
+loadModules :: [GHC.InteractiveImport] -> DaisonI ()
+loadModules is = do
+  ctx <- liftGhc GHC.getContext
+  liftGhc $ GHC.setContext (is ++ ctx)
+  return ()
+
+makeIIModule :: GHC.ModuleName -> GHC.InteractiveImport
+makeIIModule = GHC.IIModule
+
+makeIIDecl :: GHC.ModuleName -> GHC.InteractiveImport
+makeIIDecl = GHC.IIDecl . GHC.simpleImportDecl
