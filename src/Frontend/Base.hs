@@ -3,12 +3,16 @@ module Base (
   DaisonState(..),
   preludeModuleName,
   daisonModuleName,
-  runGhc
+  runGhc,
+  getState,
+  modifyState
 ) where
 
 import qualified GHCInterface as GHC
 
 import Database.Daison
+
+import Control.Monad.IO.Class
 
 data DaisonState = DaisonState {
     mode :: AccessMode,
@@ -26,8 +30,8 @@ modifyState f = DaisonI $ \st -> return ((), f st)
 instance Monad DaisonI where
     return x  = DaisonI $ \st -> return (x, st)
     (>>=) x f = DaisonI $ \st -> do
-        (v, _) <- (exec x) st
-        (exec (f v)) st
+        (v, st') <- (exec x) st
+        (exec (f v)) st'
 
 instance Applicative DaisonI where
     pure  = return
@@ -38,9 +42,16 @@ instance Applicative DaisonI where
 
 instance Functor DaisonI where
 
+instance MonadIO DaisonI where
+    liftIO m = DaisonI $ \st -> do
+        v <- GHC.liftIO m
+        return (v, st)
+
+
 preludeModuleName, daisonModuleName :: GHC.ModuleName
 preludeModuleName = GHC.mkModuleName "Prelude"
 daisonModuleName  = GHC.mkModuleName "Database.Daison"
 
 runGhc :: DaisonState -> DaisonI a -> IO (a, DaisonState)
 runGhc state ds = GHC.runGhc (Just GHC.libdir) ((exec ds) state)
+

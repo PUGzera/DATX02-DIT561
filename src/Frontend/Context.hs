@@ -12,6 +12,7 @@ loadModules :: [GHC.InteractiveImport] -> DaisonI ()
 loadModules is = DaisonI $ \st -> do
   ctx <- GHC.getContext
   GHC.setContext (is ++ ctx)
+  return ((), st)
 
 makeIIModule :: GHC.ModuleName -> GHC.InteractiveImport
 makeIIModule = GHC.IIModule
