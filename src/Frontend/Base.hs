@@ -47,6 +47,8 @@ instance MonadIO DaisonI where
         v <- GHC.liftIO m
         return (v, st)
 
+liftGhc :: GHC.Ghc a -> DaisonI a
+liftGhc m = DaisonI $ \st -> do a <- m; return (a, st)
 
 preludeModuleName, daisonModuleName :: GHC.ModuleName
 preludeModuleName = GHC.mkModuleName "Prelude"
