@@ -6,6 +6,8 @@ module Context (
 
 import qualified GHC as GHC
 
+import Exception
+
 import Base
 
 loadModules :: [GHC.InteractiveImport] -> DaisonI ()
@@ -18,3 +20,7 @@ makeIIModule = GHC.IIModule
 
 makeIIDecl :: GHC.ModuleName -> GHC.InteractiveImport
 makeIIDecl = GHC.IIDecl . GHC.simpleImportDecl
+
+addImport :: String -> DaisonI ()
+addImport mod = 
+  loadModules [makeIIModule $ GHC.mkModuleName mod]
