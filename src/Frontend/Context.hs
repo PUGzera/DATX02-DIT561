@@ -29,7 +29,5 @@ addExtension :: GHC.Extension -> DaisonI ()
 addExtension ext = do
     st <- getState
     dflags <- liftGhc GHC.getSessionDynFlags
-    let dflags' = GHC.xopt_set dflags ext
-    liftGhc $ GHC.setSessionDynFlags dflags'
-    modifyState $ \st -> st { flags = Just dflags' }
+    modifyFlags $ GHC.xopt_set dflags ext
 

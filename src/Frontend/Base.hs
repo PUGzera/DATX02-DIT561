@@ -6,7 +6,9 @@ module Base (
   runGhc,
   getState,
   modifyState,
-  liftGhc
+  liftGhc,
+  addImport,
+  modifyFlags
 ) where
 
 import qualified GHCInterface as GHC
