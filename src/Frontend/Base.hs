@@ -20,7 +20,9 @@ import qualified Control.Exception as E
 
 data DaisonState = DaisonState {
     mode :: AccessMode,
-    db :: String
+    db :: String,
+    modules :: [GHC.InteractiveImport],
+    flags :: Maybe GHC.DynFlags
 }
 
 data DaisonI a = DaisonI { exec :: DaisonState -> GHC.Ghc (a, DaisonState) }
@@ -30,6 +32,20 @@ getState = DaisonI $ \st -> return (st, st)
 
 modifyState :: (DaisonState -> DaisonState) -> DaisonI ()
 modifyState f = DaisonI $ \st -> return ((), f st)
+
+addImport :: GHC.InteractiveImport -> DaisonI ()
+addImport im = do
+    modifyState $ \st -> st { modules = im:(modules st) }
+    st <- getState
+    liftGhc $ GHC.setContext (modules st)
+
+modifyFlags :: GHC.DynFlags -> DaisonI ()
+modifyFlags dflags = do
+    modifyState $ \st -> st { flags = Just dflags }
+    st <- getState
+    case flags st of
+        Just f -> do liftGhc $ GHC.setSessionDynFlags f; return ()
+        _      -> return ()
 
 instance Monad DaisonI where
     return x  = DaisonI $ \st -> return (x, st)

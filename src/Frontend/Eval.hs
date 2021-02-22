@@ -34,7 +34,7 @@ readQuery = do
     res <- runStmt query
     return ()
 
-run :: IO ()
+{--run :: IO ()
 run = do
     print "write DB name"
     dbName <- getLine
@@ -45,9 +45,9 @@ run = do
         query <- GHC.liftIO getLine --Todo: make sure to use runDaison db mode then every query
         --let stmt = "runDaison db " ++ show (mode st) ++ " $ do " ++ query Todo: add show function for access mode
         runStmt "2+2"
-    return ()
+    return ()-}
 
 test :: IO ()
 test = do
-    runGhc (DaisonState ReadWriteMode "") (runStmt "openDB \"hej.db\"")
+    runGhc (DaisonState ReadWriteMode "" [] Nothing) (runStmt "openDB \"hej.db\"")
     return ()
