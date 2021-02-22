@@ -4,9 +4,11 @@ module Context (
   makeIIDecl
 ) where
 
-import qualified GHC as GHC
+import qualified GHCInterface as GHC
 
 import Base
+
+import qualified Control.Exception as E
 
 loadModules :: [GHC.InteractiveImport] -> DaisonI ()
 loadModules is = do
@@ -19,3 +21,15 @@ makeIIModule = GHC.IIModule
 
 makeIIDecl :: GHC.ModuleName -> GHC.InteractiveImport
 makeIIDecl = GHC.IIDecl . GHC.simpleImportDecl
+
+
+
+-- addExtension MonadComprehension to add monad comprehension later
+addExtension :: GHC.Extension -> DaisonI ()
+addExtension ext = do
+    st <- getState
+    dflags <- liftGhc GHC.getSessionDynFlags
+    let dflags' = GHC.xopt_set dflags ext
+    liftGhc $ GHC.setSessionDynFlags dflags'
+    modifyState $ \st -> st { flags = Just dflags' }
+

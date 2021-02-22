@@ -10,5 +10,6 @@ import GHC.Paths as X (libdir) -- maybe put this in another module since ghc-pat
 import DynFlags as X
 import Outputable as X
 import GhcMonad as X
+import GHC.LanguageExtensions as X
 
 import Exception as X
