@@ -19,7 +19,7 @@ runStmt stmt = do
       dflags <- liftGhc GHC.getSessionDynFlags
       liftGhc $ GHC.setSessionDynFlags dflags
 
-      loadModules $ map makeIIDecl [preludeModuleName, daisonModuleName]
+      loadModules $ map makeIIDecl [preludeModuleName, daisonModuleName, ioClassModuleName]
 
       res <- liftGhc $ GHC.execStmt stmt GHC.execOptions
       return $ case res of

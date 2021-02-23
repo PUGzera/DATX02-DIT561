@@ -3,6 +3,7 @@ module Base (
   DaisonState(..),
   preludeModuleName,
   daisonModuleName,
+  ioClassModuleName,
   runGhc,
   getState,
   modifyState,
@@ -75,6 +76,7 @@ liftGhc m = DaisonI $ \st -> do a <- m; return (a, st)
 preludeModuleName, daisonModuleName :: GHC.ModuleName
 preludeModuleName = GHC.mkModuleName "Prelude"
 daisonModuleName  = GHC.mkModuleName "Database.Daison"
+ioClassModuleName  = GHC.mkModuleName "Control.Monad.IO.Class"
 
 runGhc :: DaisonState -> DaisonI a -> IO (a, DaisonState)
 runGhc state ds = GHC.runGhc (Just GHC.libdir) ((exec ds) state)
