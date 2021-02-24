@@ -27,3 +27,10 @@ makeIIDecl = GHC.IIDecl . GHC.simpleImportDecl
 addImport :: String -> DaisonI ()
 addImport mod =
   loadModules [makeIIModule $ GHC.mkModuleName mod]
+
+-- addExtension MonadComprehension to add monad comprehension later
+addExtension :: GHC.Extension -> DaisonI ()
+addExtension ext = do
+    st <- getState
+    dflags <- liftGhc GHC.getSessionDynFlags
+    modifyFlags $ GHC.xopt_set dflags ext
