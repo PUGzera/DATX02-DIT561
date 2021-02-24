@@ -81,10 +81,3 @@ ioClassModuleName  = GHC.mkModuleName "Control.Monad.IO.Class"
 runGhc :: DaisonState -> DaisonI a -> IO (a, DaisonState)
 runGhc state ds = GHC.runGhc (Just GHC.libdir) ((exec ds) state)
 
-
-makeIIModule :: GHC.ModuleName -> GHC.InteractiveImport
-makeIIModule = GHC.IIModule
-
-makeIIDecl :: GHC.ModuleName -> GHC.InteractiveImport
-makeIIDecl = GHC.IIDecl . GHC.simpleImportDecl
-
