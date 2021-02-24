@@ -6,6 +6,8 @@ module Context (
 
 import qualified GHCInterface as GHC
 
+import Exception
+
 import Base
 
 import qualified Control.Exception as E
@@ -22,12 +24,6 @@ makeIIModule = GHC.IIModule
 makeIIDecl :: GHC.ModuleName -> GHC.InteractiveImport
 makeIIDecl = GHC.IIDecl . GHC.simpleImportDecl
 
-
-
--- addExtension MonadComprehension to add monad comprehension later
-addExtension :: GHC.Extension -> DaisonI ()
-addExtension ext = do
-    st <- getState
-    dflags <- liftGhc GHC.getSessionDynFlags
-    modifyFlags $ GHC.xopt_set dflags ext
-
+addImport :: String -> DaisonI ()
+addImport mod =
+  loadModules [makeIIModule $ GHC.mkModuleName mod]
