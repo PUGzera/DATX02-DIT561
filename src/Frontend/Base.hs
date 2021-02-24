@@ -8,7 +8,6 @@ module Base (
   getState,
   modifyState,
   liftGhc,
-  addImport,
   modifyFlags
 ) where
 
@@ -35,12 +34,6 @@ getState = DaisonI $ \st -> return (st, st)
 
 modifyState :: (DaisonState -> DaisonState) -> DaisonI ()
 modifyState f = DaisonI $ \st -> return ((), f st)
-
-addImport :: GHC.InteractiveImport -> DaisonI ()
-addImport im = do
-    modifyState $ \st -> st { modules = im:(modules st) }
-    st <- getState
-    liftGhc $ GHC.setContext (modules st)
 
 modifyFlags :: GHC.DynFlags -> DaisonI ()
 modifyFlags dflags = do
@@ -80,4 +73,3 @@ ioClassModuleName  = GHC.mkModuleName "Control.Monad.IO.Class"
 
 runGhc :: DaisonState -> DaisonI a -> IO (a, DaisonState)
 runGhc state ds = GHC.runGhc (Just GHC.libdir) ((exec ds) state)
-

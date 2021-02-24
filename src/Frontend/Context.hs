@@ -1,7 +1,9 @@
 module Context (
   loadModules,
   makeIIModule,
-  makeIIDecl
+  makeIIDecl,
+  addImport,
+  addImport'
 ) where
 
 import qualified GHCInterface as GHC
@@ -24,9 +26,15 @@ makeIIModule = GHC.IIModule
 makeIIDecl :: GHC.ModuleName -> GHC.InteractiveImport
 makeIIDecl = GHC.IIDecl . GHC.simpleImportDecl
 
-addImport :: String -> DaisonI ()
-addImport mod =
+addImport' :: String -> DaisonI ()
+addImport' mod =
   loadModules [makeIIModule $ GHC.mkModuleName mod]
+
+addImport :: GHC.InteractiveImport -> DaisonI ()
+addImport im = do
+    modifyState $ \st -> st { modules = im:(modules st) }
+    st <- getState
+    liftGhc $ GHC.setContext (modules st)
 
 -- addExtension MonadComprehension to add monad comprehension later
 addExtension :: GHC.Extension -> DaisonI ()
