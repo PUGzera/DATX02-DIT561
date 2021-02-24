@@ -10,6 +10,8 @@ import qualified GHCInterface as GHC
 import Database.Daison
 import System.Console.Haskeline
 
+import Data.List
+
 instance Show AccessMode where
     show ReadWriteMode = "ReadWriteMode"
     show ReadOnlyMode = "ReadOnlyMode"
@@ -38,6 +40,11 @@ run = do
                 Just "" -> loop state
                 Just "q" -> return (Nothing, state)
                 Just "quit" -> return (Nothing, state)
+                Just input | "import" `isPrefixOf` input -> do
+                    GHC.liftIO $ runGhc state $ do
+                        (addImport'  input) -- TODO: load modules here.
+                                            -- This throws an error now. Also, it doesn't handle the case when input is ""
+                    return (Nothing, state)
                 Just stmt -> do
                     GHC.liftIO $ runGhc state $ do
                         runStmt $ ts ++ stmt ++ tf
