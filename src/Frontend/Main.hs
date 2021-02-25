@@ -48,3 +48,4 @@ run = do
                 Just stmt -> do
                     GHC.liftIO $ runGhc state $ do
                         runStmt $ ts ++ stmt ++ tf
+                    loop state
