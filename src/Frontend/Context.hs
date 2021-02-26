@@ -1,4 +1,4 @@
-module Context (
+module Frontend.Context (
   loadModules,
   makeIIModule,
   makeIIDecl
@@ -6,7 +6,7 @@ module Context (
 
 import qualified GHC as GHC
 
-import Base
+import Frontend.Base
 
 loadModules :: [GHC.InteractiveImport] -> DaisonI ()
 loadModules is = DaisonI $ \st -> do

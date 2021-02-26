@@ -2,9 +2,9 @@ module Main (
   main
 ) where
 
-import Base
-import Context
-import Eval
+import Frontend.Base
+import Frontend.Context
+import Frontend.Eval
 
 import Database.Daison
 

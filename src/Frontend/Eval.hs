@@ -1,15 +1,15 @@
-module Eval (
+module Frontend.Eval (
   runStmt
 ) where
 
-import qualified GHCInterface as GHC
+import qualified Frontend.GHCInterface as GHC
 
 import qualified Control.Exception as E
 
 import Prelude
 
-import Base
-import Context
+import Frontend.Base
+import Frontend.Context
 
 -- | Run statements from Prelude and Daison in the 'DaisonI' monad.
 runStmt :: String -> DaisonI (Maybe GHC.ExecResult)
