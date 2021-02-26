@@ -1,7 +1,5 @@
-{-# LANGUAGE FlexibleInstances #-}
-
 module Typecheck (
-
+    exprType
 ) where
 
 import qualified GHCInterface as GHC
