@@ -15,6 +15,7 @@ import qualified GHCInterface as GHC
 
 import Database.Daison
 
+import Control.Monad (liftM)
 import Control.Monad.Catch
 import Control.Monad.IO.Class
 
@@ -58,6 +59,7 @@ instance Applicative DaisonI where
         pure (f a)
 
 instance Functor DaisonI where
+    fmap = liftM
 
 instance MonadIO DaisonI where
     liftIO m = DaisonI $ \st -> do
@@ -68,14 +70,14 @@ instance MonadThrow DaisonI where
     throwM = GHC.liftIO . GHC.throwIO
 
 instance MonadCatch DaisonI where
-    catch m h = DaisonI $ \s -> do
+    catch m h = DaisonI $ \st -> do
         GHC.liftIO $ GHC.catch
             (do
-                v <- runGhc s m 
+                v <- runGhc st m 
                 return v
             )
             $ \e -> do
-                v <- runGhc s (h e) 
+                v <- runGhc st (h e) 
                 return v
 
 liftGhc :: GHC.Ghc a -> DaisonI a
