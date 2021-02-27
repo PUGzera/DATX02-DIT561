@@ -36,12 +36,13 @@ loop :: DaisonI (Maybe GHC.ExecResult, DaisonState)
 loop = do
     state <- getState
 
+    let settings = defaultSettings {historyFile = Just "daison_history"}
     let ts = "do {db <- openDB \"" ++ db state ++ "\"; " 
                 ++ "res <- runDaison db " ++ show (mode state) 
                 ++ "(do " -- ++ stmt
     let tf =  ");  closeDB db;}"
 
-    res <- GHC.liftIO $ runInputT defaultSettings $ getInputLine $ "Daison (" ++ db state ++ ")> "
+    res <- GHC.liftIO $ runInputT settings $ getInputLine $ "Daison (" ++ db state ++ ")> "
     do
         case res of
             Nothing -> return (Nothing, state)

@@ -30,3 +30,4 @@ dist-*
 doc/
 *.db
 *.iml
+daison_history
