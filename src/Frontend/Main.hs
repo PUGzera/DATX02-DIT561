@@ -29,44 +29,44 @@ main = do
 run :: IO ()
 run = do
     state <- return $ DaisonState ReadWriteMode "test.db" [] Nothing
-    runInputT defaultSettings $ loop state
+    runGhc state loop 
     return ()
-    where
-        loop :: DaisonState -> InputT IO (Maybe GHC.ExecResult, DaisonState)
-        loop state = do
-            let ts = "do {db <- openDB \"" ++ db state ++ "\"; " 
-                      ++ "res <- runDaison db " ++ show (mode state) 
-                      ++ "(do " -- ++ stmt
-            let tf =  ");  closeDB db;}"
 
-            minput <- getInputLine $ "Daison (" ++ db state ++ ")> "
-            catch
-                (case minput of
-                    Nothing -> return (Nothing, state)
-                    Just "" -> loop state
-                    Just "q" -> return (Nothing, state)
-                    Just "quit" -> return (Nothing, state)
-                    Just input | "db " `isPrefixOf` input -> do
-                        loop $ state {db = words input !! 1}
-                    Just input | "import " `isPrefixOf` input -> do
-                        GHC.liftIO $ runGhc state $ do
-                            (addImport'  input) -- TODO: load modules here.
-                                                -- This throws an error now. Also, it doesn't handle the case when input is ""
-                        return (Nothing, state)
-                    Just stmt -> do
-                        GHC.liftIO $ runGhc state $ do
-                            runStmt $ ts ++ stmt ++ tf
-                        loop state
-                )
-                $ handleError state
+loop :: DaisonI (Maybe GHC.ExecResult, DaisonState)
+loop = do
+    state <- getState
 
-        handleError :: DaisonState -> GHC.SomeException -> InputT IO (Maybe GHC.ExecResult, DaisonState)
-        handleError state e = do
-            catch 
-                (do
-                    GHC.liftIO $ print (e :: GHC.SomeException)
-                    loop state
-                )
-                $ \e -> do
-                    GHC.liftIO $ print $ (e :: GHC.AsyncException)
-                    return (Nothing, state)
+    let ts = "do {db <- openDB \"" ++ db state ++ "\"; " 
+                ++ "res <- runDaison db " ++ show (mode state) 
+                ++ "(do " -- ++ stmt
+    let tf =  ");  closeDB db;}"
+
+    res <- GHC.liftIO $ runInputT defaultSettings $ getInputLine $ "Daison (" ++ db state ++ ")> "
+    do
+        case res of
+            Nothing -> return (Nothing, state)
+            Just "" -> loop
+            Just "q" -> return (Nothing, state)
+            Just "quit" -> return (Nothing, state)
+            Just input | "db " `isPrefixOf` input -> do
+                modifyState $ \st -> st {db = words input !! 1}
+                loop
+            Just input | "import " `isPrefixOf` input -> do
+                addImport' (words input !! 1) -- TODO: load modules here.
+                                              -- This throws an error now. Also, it doesn't handle the case when input is ""
+                loop
+            Just stmt -> do
+                runStmt $ ts ++ stmt ++ tf
+                loop
+        `catch`
+        handleError state
+
+handleError :: DaisonState -> GHC.SomeException -> DaisonI (Maybe GHC.ExecResult, DaisonState)
+handleError state e = do 
+        do
+            GHC.liftIO $ print (e :: GHC.SomeException)
+            loop
+        `catch` 
+        \e -> do
+            GHC.liftIO $ print $ (e :: GHC.AsyncException)
+            return (Nothing, state)

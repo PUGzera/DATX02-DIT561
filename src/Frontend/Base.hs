@@ -15,6 +15,7 @@ import qualified GHCInterface as GHC
 
 import Database.Daison
 
+import Control.Monad.Catch
 import Control.Monad.IO.Class
 
 import qualified Control.Exception as E
@@ -63,13 +64,27 @@ instance MonadIO DaisonI where
         v <- GHC.liftIO m
         return (v, st)
 
+instance MonadThrow DaisonI where
+    throwM = GHC.liftIO . GHC.throwIO
+
+instance MonadCatch DaisonI where
+    catch m h = DaisonI $ \s -> do
+        GHC.liftIO $ GHC.catch
+            (do
+                v <- runGhc s m 
+                return v
+            )
+            $ \e -> do
+                v <- runGhc s (h e) 
+                return v
+
 liftGhc :: GHC.Ghc a -> DaisonI a
 liftGhc m = DaisonI $ \st -> do a <- m; return (a, st)
 
 preludeModuleName, daisonModuleName :: GHC.ModuleName
 preludeModuleName = GHC.mkModuleName "Prelude"
 daisonModuleName  = GHC.mkModuleName "Database.Daison"
-ioClassModuleName  = GHC.mkModuleName "Control.Monad.IO.Class"
+ioClassModuleName = GHC.mkModuleName "Control.Monad.IO.Class"
 
 runGhc :: DaisonState -> DaisonI a -> IO (a, DaisonState)
 runGhc state ds = GHC.runGhc (Just GHC.libdir) ((exec ds) state)
