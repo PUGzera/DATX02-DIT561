@@ -6,7 +6,7 @@ module Frontend.Context (
   addImport'
 ) where
 
-import qualified GHCInterface as GHC
+import qualified Frontend.GHCInterface as GHC
 
 import Exception
 
