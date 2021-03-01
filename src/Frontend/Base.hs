@@ -3,25 +3,53 @@ module Base (
   DaisonState(..),
   preludeModuleName,
   daisonModuleName,
-  runGhc
+  ioClassModuleName,
+  runGhc,
+  getState,
+  modifyState,
+  liftGhc,
+  modifyFlags
 ) where
 
 import qualified GHCInterface as GHC
 
 import Database.Daison
 
+import Control.Monad (liftM)
+import Control.Monad.Catch
+import Control.Monad.IO.Class
+
+import qualified Control.Exception as E
+
+
 data DaisonState = DaisonState {
     mode :: AccessMode,
-    db :: String
+    db :: String,
+    modules :: [GHC.InteractiveImport],
+    flags :: Maybe GHC.DynFlags
 }
 
-data DaisonI a = DaisonI { exec :: DaisonState -> GHC.Ghc a }
+data DaisonI a = DaisonI { exec :: DaisonState -> GHC.Ghc (a, DaisonState) }
+
+getState :: DaisonI DaisonState
+getState = DaisonI $ \st -> return (st, st)
+
+modifyState :: (DaisonState -> DaisonState) -> DaisonI ()
+modifyState f = DaisonI $ \st -> return ((), f st)
+
+modifyFlags :: GHC.DynFlags -> DaisonI ()
+modifyFlags dflags = do
+    modifyState $ \st -> st { flags = Just dflags }
+    st <- getState
+    case flags st of
+        Just f -> do liftGhc $ GHC.setSessionDynFlags f; return ()
+        _      -> return ()
 
 instance Monad DaisonI where
-    return x  = DaisonI $ \st -> return x
+    return x  = DaisonI $ \st -> return (x, st)
     (>>=) x f = DaisonI $ \st -> do
-        v <- (exec x) st
-        (exec (f v)) st
+        (v, st') <- (exec x) st
+        (exec (f v)) st'
 
 instance Applicative DaisonI where
     pure  = return
@@ -31,10 +59,34 @@ instance Applicative DaisonI where
         pure (f a)
 
 instance Functor DaisonI where
+    fmap = liftM
+
+instance MonadIO DaisonI where
+    liftIO m = DaisonI $ \st -> do
+        v <- GHC.liftIO m
+        return (v, st)
+
+instance MonadThrow DaisonI where
+    throwM = GHC.liftIO . GHC.throwIO
+
+instance MonadCatch DaisonI where
+    catch m h = DaisonI $ \st -> do
+        GHC.liftIO $ GHC.catch
+            (do
+                v <- runGhc st m 
+                return v
+            )
+            $ \e -> do
+                v <- runGhc st (h e) 
+                return v
+
+liftGhc :: GHC.Ghc a -> DaisonI a
+liftGhc m = DaisonI $ \st -> do a <- m; return (a, st)
 
 preludeModuleName, daisonModuleName :: GHC.ModuleName
 preludeModuleName = GHC.mkModuleName "Prelude"
 daisonModuleName  = GHC.mkModuleName "Database.Daison"
+ioClassModuleName = GHC.mkModuleName "Control.Monad.IO.Class"
 
-runGhc :: DaisonState -> DaisonI a -> IO a
+runGhc :: DaisonState -> DaisonI a -> IO (a, DaisonState)
 runGhc state ds = GHC.runGhc (Just GHC.libdir) ((exec ds) state)
