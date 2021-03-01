@@ -13,6 +13,7 @@ import Prelude
 import Base
 import Context
 
+
 -- | Send string to the 'less' command via the 'echo' command, making it 
 -- navigable with the arrow keys.
 -- If this is not possible, print normally (e.g. when run from the Windows 
@@ -35,15 +36,14 @@ display string = do
 
 -- | Run statements from Prelude and Daison in the 'DaisonI' monad.
 runStmt :: String -> DaisonI (Maybe GHC.ExecResult)
-runStmt stmt = DaisonI $ \st -> do
-      dflags <- GHC.getSessionDynFlags
-      GHC.setSessionDynFlags dflags
+runStmt stmt = do
+      dflags <- liftGhc GHC.getSessionDynFlags
+      liftGhc $ GHC.setSessionDynFlags dflags
 
-      exec (loadModules $ map makeIIDecl [preludeModuleName, daisonModuleName]) st
+      loadModules $ map makeIIDecl [preludeModuleName, daisonModuleName, ioClassModuleName]
 
-      res <- GHC.execStmt stmt GHC.execOptions
+      res <- liftGhc $ GHC.execStmt stmt GHC.execOptions
       return $ case res of
-        GHC.ExecComplete {GHC.execResult = Right _} -> Just res
+        GHC.ExecComplete {GHC.execResult = Right _} -> (Just res)
         GHC.ExecComplete {GHC.execResult = Left e}  -> E.throw e
         _                                           -> Nothing
-
