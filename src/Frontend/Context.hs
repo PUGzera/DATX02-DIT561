@@ -1,4 +1,4 @@
-module Context (
+module Frontend.Context (
   loadModules,
   makeIIModule,
   makeIIDecl,
@@ -10,7 +10,7 @@ import qualified GHCInterface as GHC
 
 import Exception
 
-import Base
+import Frontend.Base
 
 import qualified Control.Exception as E
 

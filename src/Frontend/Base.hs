@@ -1,4 +1,4 @@
-module Base (
+module Frontend.Base (
   DaisonI(..),
   DaisonState(..),
   preludeModuleName,
@@ -11,7 +11,7 @@ module Base (
   modifyFlags
 ) where
 
-import qualified GHCInterface as GHC
+import qualified Frontend.GHCInterface as GHC
 
 import Database.Daison
 

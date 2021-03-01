@@ -1,17 +1,17 @@
-module Eval (
+module Frontend.Eval (
   display,
   runStmt
 ) where
 
-import qualified GHCInterface as GHC
+import qualified Frontend.GHCInterface as GHC
 
 import qualified Control.Exception as E
 import qualified System.Process as P
 
 import Prelude
 
-import Base
-import Context
+import Frontend.Base
+import Frontend.Context
 
 
 -- | Send string to the 'less' command via the 'echo' command, making it 

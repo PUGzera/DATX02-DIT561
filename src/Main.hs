@@ -2,10 +2,10 @@ module Main (
   main
 ) where
 
-import Base
-import Context
-import Eval
-import qualified GHCInterface as GHC
+import Frontend.Base
+import Frontend.Context
+import Frontend.Eval
+import qualified Frontend.GHCInterface as GHC
 
 import Database.Daison
 import System.Console.Haskeline
