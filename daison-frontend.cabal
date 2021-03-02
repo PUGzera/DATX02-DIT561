@@ -2,7 +2,7 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                daison-frontend
-version:             0.1.1.0
+version:             0.1.2.0
 -- synopsis:
 -- description:
 license:             BSD3
@@ -23,6 +23,6 @@ executable daison-frontend
                        Frontend.Eval
                        Frontend.GHCInterface
   -- other-extensions:    
-  build-depends:       base >=4.12 && <4.13, daison >=0.1, ghc >= 8.6 && < 9, ghc-paths >=0.1 && <0.2, ghc-boot >=8.6.5, exceptions >=0.10.4, process >=1.6.5.0, unix >=2.7.2.2, haskeline >=0.7.4.3
+  build-depends:       base >=4.12 && <4.13, daison >=0.1, ghc >= 8.6 && < 9, ghc-paths >=0.1 && <0.2, ghc-boot >=8.6.5, exceptions >=0.10.4, process >=1.6.5.0, unix >=2.7.2.2, haskeline >=0.8.0.0
   hs-source-dirs:      src
   default-language:    Haskell2010
