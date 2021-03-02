@@ -1,10 +1,10 @@
-module Typecheck (
+module Frontend.Typecheck (
     exprType
 ) where
 
-import qualified GHCInterface as GHC
-import Base
-import Context
+import qualified Frontend.GHCInterface as GHC
+import Frontend.Base
+import Frontend.Context
 
 import System.IO (Handle)
 
