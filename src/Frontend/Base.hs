@@ -18,6 +18,7 @@ import Database.Daison
 import Control.Monad (liftM)
 import Control.Monad.Catch
 import Control.Monad.IO.Class
+import Data.IORef
 
 import qualified Control.Exception as E
 
@@ -71,14 +72,17 @@ instance MonadThrow DaisonI where
 
 instance MonadCatch DaisonI where
     catch m h = DaisonI $ \st -> do
-        GHC.liftIO $ GHC.catch
+        session <- GHC.getSession
+        tempRef <- GHC.liftIO $ newIORef session
+        
+        GHC.liftIO $ GHC.catch 
             (do
-                v <- runGhc st m 
-                return v
+                v <- GHC.reflectGhc ((exec m) st) $ GHC.Session tempRef
+                return $ v
             )
             $ \e -> do
-                v <- runGhc st (h e) 
-                return v
+                v <- GHC.reflectGhc ((exec (h e)) st) $ GHC.Session tempRef
+                return $ v
 
 liftGhc :: GHC.Ghc a -> DaisonI a
 liftGhc m = DaisonI $ \st -> do a <- m; return (a, st)
