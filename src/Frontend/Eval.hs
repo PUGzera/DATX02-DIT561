@@ -37,11 +37,6 @@ display string = do
 -- | Run statements from Prelude and Daison in the 'DaisonI' monad.
 runStmt :: String -> DaisonI (Maybe GHC.ExecResult)
 runStmt stmt = do
-      dflags <- liftGhc GHC.getSessionDynFlags
-      liftGhc $ GHC.setSessionDynFlags dflags
-
-      loadModules $ map makeIIDecl [preludeModuleName, daisonModuleName, ioClassModuleName]
-
       res <- liftGhc $ GHC.execStmt stmt GHC.execOptions
       return $ case res of
         GHC.ExecComplete {GHC.execResult = Right _} -> (Just res)
