@@ -29,7 +29,7 @@ run = do
     this <- myThreadId
     installHandler keyboardSignal (Catch (GHC.throwTo this GHC.UserInterrupt)) Nothing
 
-    state <- return $ DaisonState ReadWriteMode "" [] [] Nothing
+    state <- return $ DaisonState ReadWriteMode Nothing [] [] Nothing
     runGhc state $ do
         initSession
         loop 
@@ -76,8 +76,8 @@ loop = do
 getPrompt :: DaisonState -> String
 getPrompt state = do
     case activeDB state of
-        ""   -> "Daison> "
-        file -> "Daison (" ++ file ++ ")> "
+        Nothing   -> "Daison> "
+        Just file -> "Daison (" ++ file ++ ")> "
 
 removeCmd :: String -> String
 removeCmd = unwords . tail . words
@@ -88,7 +88,7 @@ removeDoubleQuotes = filter (\ch -> ch /= '"')
 cmdQuit :: DaisonI ()
 cmdQuit = do
     state <- getState
-    sequence_ $ map (\database -> runStmt (sCloseDB database)) (openDBs state)
+    sequence_ $ map (\database -> runStmt (sCloseDB database)) $ openDBs state
 
 cmdListOpenDBs :: DaisonI ()
 cmdListOpenDBs = do
@@ -107,11 +107,10 @@ cmdOpen input = do
     runStmt $ "_activeDB <- openDB \"" ++ arg ++ "\""
     case arg `elem` dbs of
         True -> do
-            modifyState $ \st -> st{activeDB = arg}
+            modifyState $ \st -> st{activeDB = Just arg}
         False -> do
             updateSessionVariable "_openDBs" $ sAddDB arg
-            runStmt $ "print $ length _openDBs"
-            modifyState $ \st -> st{activeDB = arg,
+            modifyState $ \st -> st{activeDB = Just arg,
                                     openDBs = arg : dbs}
     loop
 
@@ -128,12 +127,11 @@ cmdClose input = do
         True -> do
             let dbs' = filter (\str -> str /= arg) dbs
             let newActive = case dbs' of
-                    [] -> ""
-                    _ -> head dbs'
+                    [] -> Nothing
+                    _ -> Just $ head dbs'
             runStmt $ sCloseDB arg 
             updateSessionVariable "_openDBs" $ sRemoveDB arg
             runStmt $ "let _activeDB = " ++ sGetDB newActive
-            runStmt $ "print $ length _openDBs"
             modifyState $ \st -> st{activeDB = newActive,
                                     openDBs = dbs'}
             loop
@@ -169,8 +167,8 @@ runDaisonStmt stmt = do
                 ++ show (mode state) ++ " " 
                 ++ "$ (" ++ stmt ++ ")"
     case activeDB state of
-        "" -> GHC.throw NoOpenDB
-        _ -> runStmt query 
+        Nothing -> GHC.throw NoOpenDB
+        Just _  -> runStmt query 
 
 handleError :: DaisonState -> GHC.SomeException -> DaisonI ()
 handleError state e = do 
@@ -200,12 +198,13 @@ sOpenDB fileName = "openDB \"" ++ fileName ++ "\""
 -- | Within session: IO ()
 --   Closes a database.
 sCloseDB :: String -> String
-sCloseDB fileName = "closeDB $ " ++ sGetDB fileName
+sCloseDB fileName = "closeDB $ " ++ sGetDB (Just fileName)
 
 -- | Within session: Database
 --   Returns a Database from the list of opened databases.
-sGetDB :: String -> String
-sGetDB fileName = "snd . head $ filter (\\(x,_) -> x == \"" ++ fileName ++ "\") _openDBs"
+sGetDB :: Maybe String -> String
+sGetDB Nothing = "\"\""
+sGetDB (Just fileName) = "snd . head $ filter (\\(x,_) -> x == \"" ++ fileName ++ "\") _openDBs"
 
 -- | Within session: [(String, Database)]
 --   Add the active database to a list of opened databases.
@@ -218,7 +217,3 @@ sAddDB fileName = "(\"" ++ fileName ++ "\", _activeDB) : _openDBs"
 --   Make sure to do sCloseDB first!
 sRemoveDB :: String -> String
 sRemoveDB fileName = "filter (\\(x,_) -> x /= \"" ++ fileName ++ "\") _openDBs"
-
-
-
-

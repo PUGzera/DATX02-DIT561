@@ -57,5 +57,5 @@ typeToStr t = do
 
 -- TODO: put in another module
 test expr = do
-  (s,_) <- GHC.liftIO $ runGhc (DaisonState ReadWriteMode "" [] [] Nothing) $ exprType expr
+  (s,_) <- GHC.liftIO $ runGhc (DaisonState ReadWriteMode Nothing [] [] Nothing) $ exprType expr
   return s

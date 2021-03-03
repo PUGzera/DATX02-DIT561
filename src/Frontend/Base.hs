@@ -27,7 +27,7 @@ import qualified Control.Exception as E
 
 data DaisonState = DaisonState {
     mode :: AccessMode,
-    activeDB :: String,
+    activeDB :: Maybe String,
     openDBs :: [String],
     modules :: [GHC.InteractiveImport],
     flags :: Maybe GHC.DynFlags
