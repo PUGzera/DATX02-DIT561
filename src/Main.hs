@@ -5,6 +5,7 @@ module Main (
 import Frontend.Base
 import Frontend.Context
 import Frontend.Eval
+import Frontend.Typecheck
 import qualified Frontend.GHCInterface as GHC
 
 import Database.Daison
@@ -56,6 +57,7 @@ loop = do
         Just input 
             | ":db "     `isPrefixOf` input -> cmdDB input
             | ":import " `isPrefixOf` input -> cmdImport input
+            | ":t "      `isPrefixOf` input -> cmdType input
             | otherwise                     -> cmdStmt input            
     `catch`
         handleError state
@@ -73,6 +75,12 @@ cmdImport input = do
     addImport' $ removeCmd input -- TODO: load modules here.
                                  -- This throws an error now. Also, it doesn't handle the case when input is ""
     loop
+cmdType :: String -> DaisonI ()
+cmdType input = do
+    let arg = removeCmd input
+    t <- exprType arg
+    GHC.liftIO $ putStrLn $ arg ++ " :: " ++ t
+    loop
 
 cmdStmt :: String -> DaisonI ()
 cmdStmt stmt = do
@@ -81,7 +89,10 @@ cmdStmt stmt = do
                 ++ "res <- runDaison db " ++ show (mode state) 
                 ++ "(do " -- ++ stmt
     let tf =  "); closeDB db}"
-    runStmt $ ts ++ stmt ++ tf
+    isQuery <- exprIsQuery stmt
+    case isQuery of
+        True -> runStmt $ ts ++ stmt ++ tf
+        False -> runStmt stmt
     loop
 
 handleError :: DaisonState -> GHC.SomeException -> DaisonI ()
