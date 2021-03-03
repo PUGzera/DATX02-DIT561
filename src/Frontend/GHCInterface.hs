@@ -14,3 +14,4 @@ import GhcMonad as X
 import GHC.LanguageExtensions as X
 
 import Exception as X
+import HscTypes as X (SourceError)
