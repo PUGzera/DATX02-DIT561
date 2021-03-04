@@ -34,8 +34,9 @@ jobs:
     - name: Install dependencies
       run: |
         cabal update
-        git clone https://github.com/krangelov/daison.git
+        git clone https://github.com/krangelov/daison.git    # download Daison from Github
         cd daison
+        echo "package daison\n  extra-include-dirs: /home/runner/work/DATX02-DIT561/DATX02-DIT561/daison/c" > cabal.project.local
         cabal install --lib
         cd ..
         cabal build --only-dependencies --enable-tests --enable-benchmarks
