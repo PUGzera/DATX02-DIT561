@@ -56,7 +56,6 @@ loop = do
 
     res <- GHC.liftIO $ runInputT settings $ getInputLine $ getPrompt state
 
-    do
     case res of
         Nothing      -> cmdQuit
         Just ""      -> loop
@@ -70,8 +69,8 @@ loop = do
             | ":open "   `isPrefixOf` input -> cmdOpen input
             | ":t "      `isPrefixOf` input -> cmdType input
             | otherwise                     -> cmdStmt input            
-    `catch`
-        handleError state
+        `catch`
+            handleError state
 
 getPrompt :: DaisonState -> String
 getPrompt state = do
