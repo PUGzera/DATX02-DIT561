@@ -10,7 +10,7 @@ on:
 jobs:
   build:
 
-    runs-on: macos-latest   # ubuntu-18.04
+    runs-on: ubuntu-18.04
 
     steps:
     - uses: actions/checkout@v2
@@ -34,11 +34,12 @@ jobs:
     - name: Install dependencies
       run: |
         cabal update
-        git clone https://github.com/krangelov/daison.git    # download Daison from Github
+        git clone https://github.com/krangelov/daison.git
         cd daison
-        echo "package daison\n  extra-include-dirs: /home/runner/work/DATX02-DIT561/DATX02-DIT561/daison/c" > cabal.project.local
+        echo -e "package daison\n  extra-include-dirs: /home/runner/work/DATX02-DIT561/DATX02-DIT561/daison/c" > cabal.project.local
         cabal install --lib
         cd ..
+        echo -e "packages: daison" > cabal.project.local
         cabal build --only-dependencies --enable-tests --enable-benchmarks
     - name: Build
       run: cabal build --enable-tests --enable-benchmarks all
