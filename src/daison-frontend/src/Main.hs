@@ -67,6 +67,7 @@ loop = do
             | ":import " `isPrefixOf` input -> cmdImport input
             | ":open "   `isPrefixOf` input -> cmdOpen input
             | ":t "      `isPrefixOf` input -> cmdType input
+            | ":import"  `isPrefixOf` input -> cmdImport input
             | otherwise                     -> cmdStmt input
     --`catch`
     --    handleError state
@@ -82,6 +83,7 @@ removeCmd = unwords . tail . words
 
 removeDoubleQuotes :: String -> String
 removeDoubleQuotes = filter (\ch -> ch /= '"')
+
 
 cmdQuit :: DaisonI ()
 cmdQuit = do
@@ -137,8 +139,7 @@ cmdClose input = do
 
 cmdImport :: String -> DaisonI ()
 cmdImport input = do
-    addImport' $ removeCmd input -- TODO: load modules here.
-                                 -- This throws an error now. Also, it doesn't handle the case when input is ""
+    addImport $ makeIIDecl $ GHC.mkModuleName $ removeCmd input
     loop
 
 cmdType :: String -> DaisonI ()
