@@ -1,6 +1,7 @@
 module Frontend.Base (
   DaisonI(..),
   DaisonState(..),
+  DaisonIError(..),
   preludeModuleName,
   daisonModuleName,
   ioClassModuleName,
@@ -19,18 +20,23 @@ import Control.Monad (liftM)
 import Control.Monad.Catch
 import Control.Monad.IO.Class
 import Data.IORef
+import Data.Typeable
 
 import qualified Control.Exception as E
 
 
 data DaisonState = DaisonState {
     mode :: AccessMode,
-    db :: String,
+    activeDB :: Maybe String,
+    openDBs :: [String],
     modules :: [GHC.InteractiveImport],
     flags :: Maybe GHC.DynFlags
 }
 
 data DaisonI a = DaisonI { exec :: DaisonState -> GHC.Ghc (a, DaisonState) }
+
+data DaisonIError = DBNotOpen | NoOpenDB
+    deriving Typeable
 
 getState :: DaisonI DaisonState
 getState = DaisonI $ \st -> return (st, st)
@@ -83,6 +89,12 @@ instance MonadCatch DaisonI where
             $ \e -> do
                 v <- GHC.reflectGhc ((exec (h e)) st) $ GHC.Session tempRef
                 return $ v
+
+instance Show DaisonIError where
+    show DBNotOpen = "database has not been opened"
+    show NoOpenDB = "no open database found"
+    
+instance Exception DaisonIError
 
 liftGhc :: GHC.Ghc a -> DaisonI a
 liftGhc m = DaisonI $ \st -> do a <- m; return (a, st)
