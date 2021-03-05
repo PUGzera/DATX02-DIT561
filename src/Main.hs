@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 module Main (
   main
 ) where
@@ -14,7 +15,10 @@ import System.Console.Haskeline hiding (display)
 import Data.List
 import Control.Monad.Catch (catch)
 import Control.Concurrent (myThreadId)
---import System.Posix.Signals
+
+#ifndef mingw32_HOST_OS
+import System.Posix.Signals
+#endif
 
 instance Show AccessMode where
     show ReadWriteMode = "ReadWriteMode"
@@ -25,16 +29,17 @@ main = run
 
 run :: IO ()
 run = do
+    -- (Non-Windows)
     -- Ensure run is not in a half-active state after CTRL+C when run in GHCi
-    --this <- myThreadId
-    --installHandler keyboardSignal (Catch (GHC.throwTo this GHC.UserInterrupt)) Nothing
-
+    GHC.tryIO $ do
+        this <- myThreadId
+        installHandler keyboardSignal (Catch (GHC.throwTo this GHC.UserInterrupt)) Nothing
+    
     state <- return $ DaisonState ReadWriteMode Nothing [] [] Nothing
     runGhc state $ do
         initSession
         loop 
     return ()
-
 
 {- Within the session:
    _activeDB  :: Database
@@ -69,8 +74,8 @@ loop = do
             | ":t "      `isPrefixOf` input -> cmdType input
             | ":import"  `isPrefixOf` input -> cmdImport input
             | otherwise                     -> cmdStmt input
-    --`catch`
-    --    handleError state
+        `catch`
+            handleError state
 
 getPrompt :: DaisonState -> String
 getPrompt state = do
@@ -83,7 +88,6 @@ removeCmd = unwords . tail . words
 
 removeDoubleQuotes :: String -> String
 removeDoubleQuotes = filter (\ch -> ch /= '"')
-
 
 cmdQuit :: DaisonI ()
 cmdQuit = do
