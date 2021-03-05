@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 module Main (
   main
 ) where
@@ -14,7 +15,10 @@ import System.Console.Haskeline hiding (display)
 import Data.List
 import Control.Monad.Catch (catch)
 import Control.Concurrent (myThreadId)
+
+#ifndef mingw32_HOST_OS
 import System.Posix.Signals
+#endif
 
 instance Show AccessMode where
     show ReadWriteMode = "ReadWriteMode"
@@ -25,16 +29,17 @@ main = run
 
 run :: IO ()
 run = do
+    -- (Non-Windows)
     -- Ensure run is not in a half-active state after CTRL+C when run in GHCi
-    this <- myThreadId
-    installHandler keyboardSignal (Catch (GHC.throwTo this GHC.UserInterrupt)) Nothing
-
+    GHC.tryIO $ do
+        this <- myThreadId
+        installHandler keyboardSignal (Catch (GHC.throwTo this GHC.UserInterrupt)) Nothing
+    
     state <- return $ DaisonState ReadWriteMode Nothing [] [] Nothing
     runGhc state $ do
         initSession
         loop 
     return ()
-
 
 {- Within the session:
    _activeDB  :: Database
@@ -44,8 +49,8 @@ initSession :: DaisonI ()
 initSession = do
     dflags <- liftGhc GHC.getSessionDynFlags
     liftGhc $ GHC.setSessionDynFlags dflags
-    loadModules $ map makeIIDecl [preludeModuleName, daisonModuleName, ioClassModuleName]
-
+    mapM_ addImport $ map makeIIDecl [preludeModuleName, daisonModuleName, ioClassModuleName]
+    addExtension GHC.MonadComprehensions
     runStmt $ "let _openDBs = [] :: [(String, Database)]"
     return ()
 
@@ -62,13 +67,14 @@ loop = do
         Just ":dbs"  -> cmdListOpenDBs
         Just ":q"    -> cmdQuit
         Just ":quit" -> cmdQuit
-        Just input 
+        Just input
             | ":close "  `isPrefixOf` input -> cmdClose input
             | ":db "     `isPrefixOf` input -> cmdOpen input
             | ":import " `isPrefixOf` input -> cmdImport input
             | ":open "   `isPrefixOf` input -> cmdOpen input
             | ":t "      `isPrefixOf` input -> cmdType input
-            | otherwise                     -> cmdStmt input            
+            | ":import"  `isPrefixOf` input -> cmdImport input
+            | otherwise                     -> cmdStmt input
         `catch`
             handleError state
 
@@ -138,8 +144,7 @@ cmdClose input = do
 
 cmdImport :: String -> DaisonI ()
 cmdImport input = do
-    addImport' $ removeCmd input -- TODO: load modules here.
-                                 -- This throws an error now. Also, it doesn't handle the case when input is ""
+    addImport $ makeIIDecl $ GHC.mkModuleName $ removeCmd input
     loop
 
 cmdType :: String -> DaisonI ()

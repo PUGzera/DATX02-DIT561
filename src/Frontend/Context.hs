@@ -3,7 +3,8 @@ module Frontend.Context (
   makeIIModule,
   makeIIDecl,
   addImport,
-  addImport'
+  addImport',
+  addExtension
 ) where
 
 import qualified Frontend.GHCInterface as GHC
