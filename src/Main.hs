@@ -60,6 +60,7 @@ loop = do
     let settings = defaultSettings {historyFile = Just "daison_history"}
 
     res <- GHC.liftIO $ runInputT settings $ getInputLine $ getPrompt state
+
     case res of
         Nothing      -> cmdQuit
         Just ""      -> loop
