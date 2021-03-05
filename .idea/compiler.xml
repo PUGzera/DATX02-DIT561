@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<project version="4">
-  <component name="HaskellBuildOptions">
-    <ghcPath>C:\ProgramData\chocolatey\lib\ghc\tools\ghc-8.10.4\bin\ghc.exe</ghcPath>
-    <cabalPath>C:\ProgramData\chocolatey\bin\cabal.exe</cabalPath>
-    <stackPath>C:\Users\allec\AppData\Roaming\local\bin\stack.exe</stackPath>
-  </component>
-</project>
