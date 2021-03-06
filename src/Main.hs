@@ -49,9 +49,9 @@ initSession :: DaisonI ()
 initSession = do
     dflags <- liftGhc GHC.getSessionDynFlags
     liftGhc $ GHC.setSessionDynFlags dflags
-    mapM_ addImport $ map makeIIDecl [preludeModuleName, daisonModuleName, ioClassModuleName]
-    addExtension GHC.MonadComprehensions
-    runStmt $ "let _openDBs = [] :: [(String, Database)]"
+    mapM_ addImport $ map makeIIDecl baseModuleNames
+    mapM_ addExtension baseExtensions
+    runExpr $ "let _openDBs = [] :: [(String, Database)]"
     return ()
 
 loop :: DaisonI ()
@@ -74,7 +74,7 @@ loop = do
             | ":open "   `isPrefixOf` input -> cmdOpen input
             | ":t "      `isPrefixOf` input -> cmdType input
             | ":import"  `isPrefixOf` input -> cmdImport input
-            | otherwise                     -> cmdStmt input
+            | otherwise                     -> cmdExpr input
         `catch`
             handleError state
 
@@ -93,7 +93,7 @@ removeDoubleQuotes = filter (\ch -> ch /= '"')
 cmdQuit :: DaisonI ()
 cmdQuit = do
     state <- getState
-    sequence_ $ map (\database -> runStmt (sCloseDB database)) $ openDBs state
+    sequence_ $ map (\database -> runExpr (sCloseDB database)) $ openDBs state
 
 cmdListOpenDBs :: DaisonI ()
 cmdListOpenDBs = do
@@ -109,7 +109,7 @@ cmdOpen input = do
     state <- getState
     let arg = removeDoubleQuotes $ (words input) !! 1
     let dbs = openDBs state
-    runStmt $ "_activeDB <- openDB \"" ++ arg ++ "\""
+    runExpr $ "_activeDB <- openDB \"" ++ arg ++ "\""
     case arg `elem` dbs of
         True -> do
             modifyState $ \st -> st{activeDB = Just arg}
@@ -134,9 +134,9 @@ cmdClose input = do
             let newActive = case dbs' of
                     [] -> Nothing
                     _ -> Just $ head dbs'
-            runStmt $ sCloseDB arg 
+            runExpr $ sCloseDB arg 
             updateSessionVariable "_openDBs" $ sRemoveDB arg
-            runStmt $ "let _activeDB = " ++ sGetDB newActive
+            runExpr $ "let _activeDB = " ++ sGetDB newActive
             modifyState $ \st -> st{activeDB = newActive,
                                     openDBs = dbs'}
             loop
@@ -154,25 +154,27 @@ cmdType input = do
     GHC.liftIO $ putStrLn $ arg ++ " :: " ++ t
     loop
 
-cmdStmt :: String -> DaisonI ()
-cmdStmt stmt = do
-    isQuery <- exprIsQuery stmt
+cmdExpr :: String -> DaisonI ()
+cmdExpr expr = do
+    isQuery <- exprIsQuery expr
     case isQuery of
-        True -> runDaisonStmt stmt -- TODO: Find a way to read the result outside of the session
-        False -> runStmt stmt
+        True -> runDaisonStmt expr -- TODO: Find a way to read the result outside of the session
+        False -> runExpr expr
     loop
 
 -- | Perform a Daison transaction.
 --   Throws an exception if no database has been opened.
-runDaisonStmt :: String -> DaisonI (Maybe GHC.ExecResult)
+runDaisonStmt :: String -> DaisonI [GHC.Name]
 runDaisonStmt stmt = do
     state <- getState
+    t <- exprType stmt
+    daisonStmt <- mToDaison stmt
     let query = "runDaison _activeDB " 
                 ++ show (mode state) ++ " " 
-                ++ "$ (" ++ stmt ++ ")"
+                ++ "$ (" ++ daisonStmt ++ ")"
     case activeDB state of
         Nothing -> GHC.throw NoOpenDB
-        Just _  -> runStmt query 
+        Just _  -> runExpr query
 
 handleError :: DaisonState -> GHC.SomeException -> DaisonI ()
 handleError state e = do 
@@ -188,11 +190,11 @@ handleError state e = do
 --   in terms of itself
 updateSessionVariable :: String -> String -> DaisonI ()
 updateSessionVariable var newValue = do
-    runStmt $ "let temp_" ++ var ++ " = " ++ newValue
-    runStmt $ "let " ++ var ++ " = temp_" ++ var
+    runExpr $ "let temp_" ++ var ++ " = " ++ newValue
+    runExpr $ "let " ++ var ++ " = temp_" ++ var
     return () 
 
-{- Functions to be used as part of runStmt arguments -}
+{- Functions to be used as part of runExpr arguments -}
 
 -- | Within session: Database
 --   Opens a database.

@@ -1,6 +1,6 @@
 module Frontend.Eval (
   display,
-  runStmt
+  runExpr
 ) where
 
 import qualified Frontend.GHCInterface as GHC
@@ -12,6 +12,7 @@ import Prelude
 
 import Frontend.Base
 import Frontend.Context
+import Frontend.Typecheck
 
 
 -- | Send string to the 'less' command via the 'echo' command, making it 
@@ -34,11 +35,22 @@ display showable = do
         Left _ -> putStrLn . show $ showable
         Right () -> return ()
 
--- | Run statements from Prelude and Daison in the 'DaisonI' monad.
-runStmt :: String -> DaisonI (Maybe GHC.ExecResult)
+-- | Run expressions in the DaisonI monad.
+runExpr :: String -> DaisonI [GHC.Name]
+runExpr expr = do
+    category <- getExprCategory expr
+    case category of
+        Just "Statement"   -> runStmt expr
+        Just "Declaration" -> runDecl expr
+        _                  -> return []
+
+-- | Run declarations in the DaisonI monad.
+runDecl :: String -> DaisonI [GHC.Name]
+runDecl = liftGhc . GHC.runDecls
+
+-- | Run statements in the DaisonI monad.
+runStmt :: String -> DaisonI [GHC.Name]
 runStmt stmt = do
-      res <- liftGhc $ GHC.execStmt stmt GHC.execOptions
-      return $ case res of
-        GHC.ExecComplete {GHC.execResult = Right _} -> (Just res)
-        GHC.ExecComplete {GHC.execResult = Left e}  -> E.throw e
-        _                                           -> Nothing
+    res <- liftGhc $ GHC.execStmt stmt GHC.execOptions
+    let Right names = GHC.execResult res
+    return names

@@ -2,9 +2,8 @@ module Frontend.Base (
   DaisonI(..),
   DaisonState(..),
   DaisonIError(..),
-  preludeModuleName,
-  daisonModuleName,
-  ioClassModuleName,
+  baseModuleNames,
+  baseExtensions,
   runGhc,
   getState,
   modifyState,
@@ -99,10 +98,19 @@ instance Exception DaisonIError
 liftGhc :: GHC.Ghc a -> DaisonI a
 liftGhc m = DaisonI $ \st -> do a <- m; return (a, st)
 
-preludeModuleName, daisonModuleName :: GHC.ModuleName
-preludeModuleName = GHC.mkModuleName "Prelude"
-daisonModuleName  = GHC.mkModuleName "Database.Daison"
-ioClassModuleName = GHC.mkModuleName "Control.Monad.IO.Class"
+baseModuleNames :: [GHC.ModuleName]
+baseModuleNames = map GHC.mkModuleName [
+    "Prelude",
+    "Database.Daison", 
+    "Control.Monad.IO.Class",
+    "Data.Data"
+    ]
+
+baseExtensions :: [GHC.Extension]
+baseExtensions = [
+    GHC.MonadComprehensions,
+    GHC.DeriveDataTypeable
+    ]
 
 runGhc :: DaisonState -> DaisonI a -> IO (a, DaisonState)
 runGhc state ds = GHC.runGhc (Just GHC.libdir) ((exec ds) state)
