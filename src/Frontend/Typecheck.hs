@@ -1,6 +1,7 @@
 module Frontend.Typecheck (
     exprType,
-    exprIsQuery
+    exprIsQuery,
+    mToDaison
 ) where
 
 import qualified Frontend.GHCInterface as GHC hiding (catch)
@@ -11,6 +12,7 @@ import System.IO (Handle)
 import Control.Monad.Catch
 
 import Database.Daison (AccessMode(..))
+import Data.List
 
 exprType :: String -> DaisonI String
 exprType expr = do
@@ -20,14 +22,15 @@ exprType expr = do
   unqual <- liftGhc GHC.getPrintUnqual
   return $ GHC.showSDocForUser dflags unqual (GHC.pprTypeForUser t)
 
--- TODO: check if this is enough
+-- | Check if an expression is a Daison query
 exprIsQuery :: String -> DaisonI Bool
 exprIsQuery expr = do
     t <- catch (exprType expr) ignoreAssignmentError
+    let t' = removeTypeConstraint t
 
-    case Just t >>= startsWithLowerM >>= isDaison of
+    case Just t' >>= startsWithLowerM >>= isDaison of
         Nothing -> return True  -- run in Daison monad
-        Just t  -> return False -- run as pure/IO expression
+        Just t'  -> return False -- run as pure/IO expression
 
     where
         -- Assumes that "let a = b" is the only reasonable input that
@@ -47,6 +50,22 @@ exprIsQuery expr = do
         isDaison str
             | take 6 str == "Daison" = Nothing
             | otherwise              = Just str
+
+-- | Tell the interpreter to parse 'm a' as 'Daison a'.
+mToDaison :: String -> DaisonI String
+mToDaison stmt = do
+        t <- exprType stmt
+        return $ "(" ++ stmt ++ ") :: " ++ (asDaison . removeTypeConstraint) t
+        where
+            asDaison ('m':t) = "Daison" ++ t
+            asDaison t = t
+
+-- | e.g. "QueryMonad m => m [(Key (String, Int), (String, Int))]"
+--   =>   "m [(Key (String, Int), (String, Int))]"
+removeTypeConstraint :: String -> String
+removeTypeConstraint str
+    | "=>" `elem` (words str) = drop 2 $ dropWhile (\ch -> ch /= '>') str
+    | otherwise               = str
 
 -- Currently not used
 typeToStr :: GHC.Type -> DaisonI String
