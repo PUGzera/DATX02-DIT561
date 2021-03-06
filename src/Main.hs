@@ -49,9 +49,8 @@ initSession :: DaisonI ()
 initSession = do
     dflags <- liftGhc GHC.getSessionDynFlags
     liftGhc $ GHC.setSessionDynFlags dflags
-    mapM_ addImport $ map makeIIDecl [preludeModuleName, daisonModuleName, ioClassModuleName, dataModuleName]
-    addExtension GHC.MonadComprehensions
-    addExtension GHC.DeriveDataTypeable
+    mapM_ addImport $ map makeIIDecl baseModuleNames
+    mapM_ addExtension baseExtensions
     runExpr $ "let _openDBs = [] :: [(String, Database)]"
     return ()
 
