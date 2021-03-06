@@ -5,6 +5,7 @@ module Frontend.Base (
   preludeModuleName,
   daisonModuleName,
   ioClassModuleName,
+  dataModuleName,
   runGhc,
   getState,
   modifyState,
@@ -103,6 +104,7 @@ preludeModuleName, daisonModuleName :: GHC.ModuleName
 preludeModuleName = GHC.mkModuleName "Prelude"
 daisonModuleName  = GHC.mkModuleName "Database.Daison"
 ioClassModuleName = GHC.mkModuleName "Control.Monad.IO.Class"
+dataModuleName = GHC.mkModuleName "Data.Data"
 
 runGhc :: DaisonState -> DaisonI a -> IO (a, DaisonState)
 runGhc state ds = GHC.runGhc (Just GHC.libdir) ((exec ds) state)

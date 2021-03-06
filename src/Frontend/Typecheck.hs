@@ -1,6 +1,7 @@
 module Frontend.Typecheck (
     exprType,
     exprIsQuery,
+    getExprCategory,
     mToDaison
 ) where
 
@@ -25,37 +26,54 @@ exprType expr = do
 -- | Check if an expression is a Daison query
 exprIsQuery :: String -> DaisonI Bool
 exprIsQuery expr = do
-    t <- catch (exprType expr) ignoreAssignmentError
+    t <- catch (exprType expr) errorHandler
     let t' = removeTypeConstraint t
 
-    case Just t' >>= startsWithLowerM >>= isDaison of
-        Nothing -> return True  -- run in Daison monad
-        Just t'  -> return False -- run as pure/IO expression
+    if t' == ignoredError
+    then return False
+    else return $ startsWithLowerM t' || isDaison t'
 
     where
-        -- Assumes that "let a = b" is the only reasonable input that
-        -- raises the "not an expression" error
-        ignoreAssignmentError :: GHC.SourceError -> DaisonI String
-        ignoreAssignmentError e = do
-            let msg = show e
-            case take 18 msg of
-                "not an expression:" -> return msg
-                _ -> GHC.liftIO $ GHC.throwIO e
+        ignoredError = "_ IgnoredError"
+        errorHandler :: GHC.SourceError -> DaisonI String
+        errorHandler e = do
+            case Just e >>= isAssignmentError >>= possibleDeclaration of
+                Nothing -> return ignoredError
+                Just e  -> GHC.liftIO $ GHC.throwIO e
 
-        startsWithLowerM :: String -> Maybe String
-        startsWithLowerM ('m':str) = Nothing
-        startsWithLowerM str       = Just str
+        -- | Assumes that "let a = b" is the only reasonable input that
+        --   raises the "not an expression" err
+        isAssignmentError :: GHC.SourceError -> Maybe GHC.SourceError
+        isAssignmentError e
+            | "not an expression:" `isPrefixOf` msg = Nothing
+            | otherwise                             = Just e
+            where msg = show e
 
-        isDaison :: String -> Maybe String
-        isDaison str
-            | take 6 str == "Daison" = Nothing
-            | otherwise              = Just str
+        startsWithLowerM :: String -> Bool
+        startsWithLowerM = ("m" `isPrefixOf`)
+
+        isDaison :: String -> Bool
+        isDaison = ("Daison" `isPrefixOf`)
+
+getExprCategory :: String -> DaisonI (Maybe String)
+getExprCategory expr = do
+    t <- catch (Right <$> (exprType expr)) (\e -> return (Left (possibleDeclaration e)))
+    case t of
+        Left  Nothing  -> return $ Just "Declaration"
+        Left  _        -> return $ Just "Statement"
+        Right _        -> return $ Just "Statement"
+
+possibleDeclaration :: GHC.SourceError -> Maybe GHC.SourceError
+possibleDeclaration e
+    | "parse error on input" `isPrefixOf` msg = Nothing
+    | otherwise                               = Just e
+    where msg = show e
 
 -- | Tell the interpreter to parse 'm a' as 'Daison a'.
 mToDaison :: String -> DaisonI String
 mToDaison stmt = do
         t <- exprType stmt
-        return $ "(" ++ stmt ++ ") :: " ++ (asDaison . removeTypeConstraint) t
+        return $ "(" ++ stmt ++ ") :: " ++ (asDaison . removeTypeConstraint) t  
         where
             asDaison ('m':t) = "Daison" ++ t
             asDaison t = t
