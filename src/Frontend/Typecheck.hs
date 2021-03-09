@@ -91,8 +91,4 @@ typeToStr t = do
   dflags <- liftGhc GHC.getSessionDynFlags
   unqual <- liftGhc GHC.getPrintUnqual
   return $ GHC.showSDocForUser dflags unqual (GHC.pprTypeForUser t)
-
--- TODO: put in another module
-test expr = do
-  (s,_) <- GHC.liftIO $ runGhc (DaisonState ReadWriteMode Nothing [] [] Nothing) $ exprType expr
-  return s
+  

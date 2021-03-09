@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP #-}
-module Main (
-  main
+module Frontend.Run (
+  run
 ) where
 
 import Frontend.Base
@@ -10,13 +10,12 @@ import Frontend.Typecheck
 import qualified Frontend.GHCInterface as GHC
 
 import Database.Daison
-import System.Console.Haskeline hiding (display)
 
 import Data.List
 import Control.Monad.Catch (catch)
 import Control.Concurrent (myThreadId)
 
-#ifndef mingw32_HOST_OS
+#if !defined(mingw32_HOST_OS) && !defined(TEST)
 import System.Posix.Signals
 #endif
 
@@ -24,21 +23,19 @@ instance Show AccessMode where
     show ReadWriteMode = "ReadWriteMode"
     show ReadOnlyMode = "ReadOnlyMode"
 
-main :: IO ()
-main = run
-
-run :: IO ()
-run = do
+run :: (String -> IO (Maybe String)) -> IO ()
+run input = do
+#if !defined(mingw32_HOST_OS) && !defined(TEST)
     -- (Non-Windows)
     -- Ensure run is not in a half-active state after CTRL+C when run in GHCi
-    GHC.tryIO $ do
-        this <- myThreadId
-        installHandler keyboardSignal (Catch (GHC.throwTo this GHC.UserInterrupt)) Nothing
-    
-    state <- return $ DaisonState ReadWriteMode Nothing [] [] Nothing
+    this <- myThreadId
+    installHandler keyboardSignal (Catch (GHC.throwTo this GHC.UserInterrupt)) Nothing
+#endif
+
+    state <- return $ DaisonState ReadWriteMode Nothing [] [] Nothing input
     runGhc state $ do
         initSession
-        loop 
+        loop
     return ()
 
 {- Within the session:
@@ -57,10 +54,8 @@ initSession = do
 loop :: DaisonI ()
 loop = do
     state <- getState
-    let settings = defaultSettings {historyFile = Just "daison_history"}
 
-    res <- GHC.liftIO $ runInputT settings $ getInputLine $ getPrompt state
-
+    res <- GHC.liftIO $ input state $ getPrompt state
     case res of
         Nothing      -> cmdQuit
         Just ""      -> loop
@@ -73,7 +68,6 @@ loop = do
             | ":import " `isPrefixOf` input -> cmdImport input
             | ":open "   `isPrefixOf` input -> cmdOpen input
             | ":t "      `isPrefixOf` input -> cmdType input
-            | ":import"  `isPrefixOf` input -> cmdImport input
             | otherwise                     -> cmdExpr input
         `catch`
             handleError state
