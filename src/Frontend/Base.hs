@@ -29,7 +29,8 @@ data DaisonState = DaisonState {
     activeDB :: Maybe String,
     openDBs :: [String],
     modules :: [GHC.InteractiveImport],
-    flags :: Maybe GHC.DynFlags
+    flags :: Maybe GHC.DynFlags,
+    input :: String -> IO (Maybe String)
 }
 
 data DaisonI a = DaisonI { exec :: DaisonState -> GHC.Ghc (a, DaisonState) }

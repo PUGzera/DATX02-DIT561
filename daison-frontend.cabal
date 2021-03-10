@@ -18,10 +18,18 @@ package-url:         https://github.com/PUGzera/DATX02-DIT561
 
 test-suite tests
   type:		       exitcode-stdio-1.0
-  hs-source-dirs:      test
-  main-is:	       Tests.hs
-  build-depends:       base >=4.12, QuickCheck
+  hs-source-dirs:      test, src
+  main-is:             Tests.hs
+  other-modules:       Frontend.Base
+                       Frontend.Context
+                       Frontend.Eval
+                       Frontend.GHCInterface
+                       Frontend.Typecheck
+                       Frontend.Run
+  build-depends:       base >=4.12, daison >=0.1, ghc >= 8.6 && < 9, ghc-paths >=0.1 && <0.2, ghc-boot >=8.6.5, exceptions >=0.10.4, process >=1.6.5.0, directory>= 1.3.3.0, QuickCheck
   default-language:    Haskell2010
+  ghc-options:         -dynamic
+  cpp-options:         -DTEST=true
 
 executable daison-frontend
   main-is:             Main.hs
@@ -30,6 +38,7 @@ executable daison-frontend
                        Frontend.Eval
                        Frontend.GHCInterface
                        Frontend.Typecheck
+                       Frontend.Run
   -- other-extensions:    
   build-depends:       base >=4.12, daison >=0.1, ghc >= 8.6 && < 9, ghc-paths >=0.1 && <0.2, ghc-boot >=8.6.5, exceptions >=0.10.4, process >=1.6.5.0, unix >=2.7.2.2, haskeline >=0.8.0.0
   hs-source-dirs:      src
