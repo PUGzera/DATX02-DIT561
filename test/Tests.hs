@@ -113,5 +113,6 @@ prop_readFromDatabase testData = ioProperty $ do
 
     return $ show' res == show' ref
 
+main :: IO ()
 main = do
     quickCheckWith (stdArgs {maxSuccess = 10}) prop_readFromDatabase
