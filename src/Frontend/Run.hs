@@ -34,7 +34,7 @@ run input = do
     state <- return $ DaisonState ReadWriteMode Nothing [] [] Nothing input
     runGhc state $ do
         initSession
-        loop
+        loop `GHC.gfinally` closeDBs
     return ()
 
 {- Within the session:
@@ -71,6 +71,11 @@ loop = do
         `GHC.gcatch`
             handleError state
 
+closeDBs :: DaisonI ()
+closeDBs = do
+    state <- getState
+    sequence_ $ map (\database -> runExpr (sCloseDB database)) $ openDBs state
+
 getPrompt :: DaisonState -> String
 getPrompt state = do
     case activeDB state of
@@ -84,9 +89,7 @@ removeDoubleQuotes :: String -> String
 removeDoubleQuotes = filter (\ch -> ch /= '"')
 
 cmdQuit :: DaisonI ()
-cmdQuit = do
-    state <- getState
-    sequence_ $ map (\database -> runExpr (sCloseDB database)) $ openDBs state
+cmdQuit = return ()
 
 cmdListOpenDBs :: DaisonI ()
 cmdListOpenDBs = do
