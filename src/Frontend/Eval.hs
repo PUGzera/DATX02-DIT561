@@ -5,7 +5,6 @@ module Frontend.Eval (
 
 import qualified Frontend.GHCInterface as GHC
 
-import qualified Control.Exception as E
 import qualified System.Process as P
 
 import Prelude
@@ -29,8 +28,8 @@ display showable = do
             P.waitForProcess hcmd
             return $ Right ()
 
-    res <- GHC.liftIO $ E.catch sendToLess $
-            \e -> (return . Left . show) (e :: E.IOException)
+    res <- GHC.liftIO $ GHC.catch sendToLess $
+            \e -> (return . Left . show) (e :: GHC.IOException)
     GHC.liftIO $ case res of
         Left _ -> putStrLn . show $ showable
         Right () -> return ()
@@ -52,5 +51,6 @@ runDecl = liftGhc . GHC.runDecls
 runStmt :: String -> DaisonI [GHC.Name]
 runStmt stmt = do
     res <- liftGhc $ GHC.execStmt stmt GHC.execOptions
-    let Right names = GHC.execResult res
-    return names
+    case GHC.execResult res of
+        Left error  -> GHC.throw error
+        Right names -> return names
