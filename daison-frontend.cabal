@@ -26,7 +26,7 @@ test-suite tests
                        Frontend.GHCInterface
                        Frontend.Typecheck
                        Frontend.Run
-  build-depends:       base >=4.12, daison >=0.1, ghc >= 8.6 && < 9, ghc-paths >=0.1 && <0.2, ghc-boot >=8.6.5, exceptions >=0.10.4, process >=1.6.5.0, directory>= 1.3.3.0, QuickCheck
+  build-depends:       base >=4.12, daison >=0.1, ghc >= 8.6 && < 9, ghc-paths >=0.1 && <0.2, ghc-boot >=8.6.5, process >=1.6.5.0, directory>= 1.3.3.0, QuickCheck
   default-language:    Haskell2010
   ghc-options:         -dynamic
   cpp-options:         -DTEST=true
@@ -40,7 +40,7 @@ executable daison-frontend
                        Frontend.Typecheck
                        Frontend.Run
   -- other-extensions:    
-  build-depends:       base >=4.12, daison >=0.1, ghc >= 8.6 && < 9, ghc-paths >=0.1 && <0.2, ghc-boot >=8.6.5, exceptions >=0.10.4, process >=1.6.5.0, unix >=2.7.2.2, haskeline >=0.8.0.0
+  build-depends:       base >=4.12, daison >=0.1, ghc >= 8.6 && < 9, ghc-paths >=0.1 && <0.2, ghc-boot >=8.6.5, process >=1.6.5.0, unix >=2.7.2.2, haskeline >=0.8.0.0
   hs-source-dirs:      src
   default-language:    Haskell2010
   ghc-options:         -dynamic

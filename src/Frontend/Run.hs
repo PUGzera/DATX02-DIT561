@@ -12,7 +12,6 @@ import qualified Frontend.GHCInterface as GHC
 import Database.Daison
 
 import Data.List
-import Control.Monad.Catch (catch)
 import Control.Concurrent (myThreadId)
 
 #if !defined(mingw32_HOST_OS) && !defined(TEST)
@@ -69,7 +68,7 @@ loop = do
             | ":open "   `isPrefixOf` input -> cmdOpen input
             | ":t "      `isPrefixOf` input -> cmdType input
             | otherwise                     -> cmdExpr input
-        `catch`
+        `GHC.gcatch`
             handleError state
 
 getPrompt :: DaisonState -> String
@@ -177,9 +176,9 @@ handleError state e = do
         do
             GHC.liftIO $ print (e :: GHC.SomeException)
             loop
-        `catch` 
+        `GHC.gcatch` 
         \e -> do
-            GHC.liftIO $ print $ (e :: GHC.AsyncException)
+            GHC.liftIO $ print (e :: GHC.AsyncException)
             return ()
 
 -- | Used as a workaround to redefine a variable

@@ -10,7 +10,6 @@ import Frontend.Base
 import Frontend.Context
 
 import System.IO (Handle)
-import Control.Monad.Catch
 
 import Database.Daison (AccessMode(..))
 import Data.List
@@ -26,7 +25,7 @@ exprType expr = do
 -- | Check if an expression is a Daison query
 exprIsQuery :: String -> DaisonI Bool
 exprIsQuery expr = do
-    t <- catch (exprType expr) errorHandler
+    t <- GHC.gcatch (exprType expr) errorHandler
     let t' = removeTypeConstraint t
 
     if t' == ignoredError
@@ -57,7 +56,7 @@ exprIsQuery expr = do
 
 getExprCategory :: String -> DaisonI (Maybe String)
 getExprCategory expr = do
-    t <- catch (Right <$> (exprType expr)) (\e -> return (Left (possibleDeclaration e)))
+    t <- GHC.gcatch (Right <$> (exprType expr)) (\e -> return (Left (possibleDeclaration e)))
     case t of
         Left  Nothing  -> return $ Just "Declaration"
         Left  _        -> return $ Just "Statement"

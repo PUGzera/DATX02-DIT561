@@ -16,7 +16,6 @@ import qualified Frontend.GHCInterface as GHC
 import Database.Daison
 
 import Control.Monad (liftM)
-import Control.Monad.Catch
 import Control.Monad.IO.Class
 import Data.IORef
 import Data.Typeable
@@ -73,28 +72,29 @@ instance MonadIO DaisonI where
         v <- GHC.liftIO m
         return (v, st)
 
-instance MonadThrow DaisonI where
-    throwM = GHC.liftIO . GHC.throwIO
-
-instance MonadCatch DaisonI where
-    catch m h = DaisonI $ \st -> do
-        session <- GHC.getSession
-        tempRef <- GHC.liftIO $ newIORef session
-        
+instance GHC.ExceptionMonad DaisonI where
+    gcatch m h = DaisonI $ \st -> do
+        ref <- getSessionRef
         GHC.liftIO $ GHC.catch 
-            (do
-                v <- GHC.reflectGhc ((exec m) st) $ GHC.Session tempRef
-                return $ v
-            )
-            $ \e -> do
-                v <- GHC.reflectGhc ((exec (h e)) st) $ GHC.Session tempRef
-                return $ v
+            (unDaisonI st m ref)
+            $ \e -> unDaisonI st (h e) ref
+    
+    gmask f = do
+        DaisonI $ \st -> do
+            ref <- getSessionRef
+            GHC.liftIO $ GHC.gmask $ \io_restore ->
+                let
+                    g_restore ds = do
+                        (v,_) <- GHC.liftIO $ io_restore $ unDaisonI st ds ref
+                        return v
+                in
+                    unDaisonI st (f g_restore) ref
 
 instance Show DaisonIError where
     show DBNotOpen = "database has not been opened"
     show NoOpenDB = "no open database found"
     
-instance Exception DaisonIError
+instance E.Exception DaisonIError
 
 liftGhc :: GHC.Ghc a -> DaisonI a
 liftGhc m = DaisonI $ \st -> do a <- m; return (a, st)
@@ -115,3 +115,12 @@ baseExtensions = [
 
 runGhc :: DaisonState -> DaisonI a -> IO (a, DaisonState)
 runGhc state ds = GHC.runGhc (Just GHC.libdir) ((exec ds) state)
+
+getSessionRef :: GHC.Ghc (IORef GHC.HscEnv)
+getSessionRef = do
+    session <- GHC.getSession
+    GHC.liftIO $ newIORef session
+
+unDaisonI :: DaisonState -> DaisonI a -> IORef GHC.HscEnv -> IO (a, DaisonState)
+unDaisonI state ds ref = do
+    GHC.reflectGhc ((exec ds) state) $ GHC.Session ref
