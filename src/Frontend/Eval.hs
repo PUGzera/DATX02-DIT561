@@ -1,6 +1,9 @@
 module Frontend.Eval (
   display,
-  runExpr
+  getResult,
+  getResults,
+  runExpr,
+  runExpr'
 ) where
 
 import qualified Frontend.GHCInterface as GHC
@@ -33,6 +36,30 @@ display showable = do
     GHC.liftIO $ case res of
         Left _ -> putStrLn . show $ showable
         Right () -> return ()
+
+-- | Get string representations of the results from e.g. runExpr.
+getResults :: [GHC.Name] -> DaisonI [String]
+getResults = mapM getResult
+
+-- | Get a string representation of the value corresponding to a Name
+getResult :: GHC.Name -> DaisonI String
+getResult name = do
+    dflags <- liftGhc GHC.getSessionDynFlags
+
+    mtt <- liftGhc $ GHC.lookupName name
+    let ttId = case mtt of
+            Just tt -> GHC.tyThingId tt
+            Nothing -> error "name not found"
+    term <- liftGhc $ GHC.obtainTermFromId maxBound True ttId
+
+    return $ GHC.showSDoc dflags $ GHC.ppr term
+
+-- | Run expressions in the DaisonI monad and return a string
+--   representation of the result.
+runExpr' :: String -> DaisonI [String]
+runExpr' expr = do
+    names <- runExpr expr
+    getResults names
 
 -- | Run expressions in the DaisonI monad.
 runExpr :: String -> DaisonI [GHC.Name]
