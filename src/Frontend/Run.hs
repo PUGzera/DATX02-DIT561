@@ -9,6 +9,10 @@ import Frontend.Eval
 import Frontend.Typecheck
 import qualified Frontend.GHCInterface as GHC
 
+import System.Environment
+
+import System.Directory
+
 import Database.Daison
 
 import Data.List
@@ -30,8 +34,8 @@ run input = do
     this <- myThreadId
     installHandler keyboardSignal (Catch (GHC.throwTo this GHC.UserInterrupt)) Nothing
 #endif
-
-    state <- return $ DaisonState ReadWriteMode Nothing [] [] Nothing input
+    d <- getCurrentDirectory
+    state <- return $ DaisonState ReadWriteMode Nothing [] [] Nothing input d
     runGhc state $ do
         initSession
         loop `GHC.gfinally` closeDBs
@@ -96,6 +100,17 @@ cmdListOpenDBs = do
     state <- getState
     GHC.liftIO $ print $ openDBs state
     loop
+
+
+handleArgs :: DaisonI ()
+hanldeArgs = do
+    GHC.liftIO getArgs
+    -- do something based on args
+    return ()
+
+--cmdSet :: String -> DaisonI ()
+--cmdSet input = do
+
 
 -- | Opens a database within the session and marks it as active,
 --   while keeping track of other open databases.
