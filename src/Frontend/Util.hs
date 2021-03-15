@@ -1,3 +1,12 @@
+
+module Frontend.Util (
+    cd
+) where
+
+import Frontend.Base
+
+import qualified Frontend.GHCInterface as GHC
+
 import System.Environment
 
 import System.Directory
@@ -17,12 +26,12 @@ cd' ".." s = reverse $ dropWhile (\c -> c /= '/') (reverse s)
 cd' d s    = s ++ "/" ++ d
 
 
--- Check if OS before calling winToUnix or unixToWin
-cd :: String -> IO String
+-- ToDo: Check if OS before calling winToUnix or unixToWin
+cd :: String -> DaisonI ()
 cd s = do
-    d <- getCurrentDirectory
+    d <- GHC.liftIO getCurrentDirectory
     let ud = cd' s $ winToUnix d
-    id <- doesDirectoryExist ud
-    return $ case id of
-        True -> ud
-        False -> winToUnix d
+    id <- GHC.liftIO $ doesDirectoryExist ud
+    case id of
+        True -> modifyState (\st -> st { currentDirectory = ud } )
+        False -> return ()

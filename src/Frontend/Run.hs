@@ -7,6 +7,7 @@ import Frontend.Base
 import Frontend.Context
 import Frontend.Eval
 import Frontend.Typecheck
+import Frontend.Util
 import qualified Frontend.GHCInterface as GHC
 
 import System.Environment
@@ -71,6 +72,7 @@ loop = do
             | ":import " `isPrefixOf` input -> cmdImport input
             | ":open "   `isPrefixOf` input -> cmdOpen input
             | ":t "      `isPrefixOf` input -> cmdType input
+            | ":cd "     `isPrefixOf` input -> cmdCd input
             | otherwise                     -> cmdExpr input
         `GHC.gcatch`
             handleError state
@@ -102,15 +104,15 @@ cmdListOpenDBs = do
     loop
 
 
-handleArgs :: DaisonI ()
-hanldeArgs = do
-    GHC.liftIO getArgs
-    -- do something based on args
-    return ()
 
 --cmdSet :: String -> DaisonI ()
 --cmdSet input = do
 
+-- | Updates the current directory
+cmdCd :: String -> DaisonI ()
+cmdCd input = do
+    let arg = removeDoubleQuotes $ (words input) !! 1
+    cd arg
 
 -- | Opens a database within the session and marks it as active,
 --   while keeping track of other open databases.
