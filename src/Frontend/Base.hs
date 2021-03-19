@@ -76,8 +76,8 @@ instance GHC.ExceptionMonad DaisonI where
     gcatch m h = DaisonI $ \st -> do
         ref <- getSessionRef
         GHC.liftIO $ GHC.catch 
-            (unDaisonI st m ref)
-            $ \e -> unDaisonI st (h e) ref
+            (reflectDaisonI st m ref)
+            $ \e -> reflectDaisonI st (h e) ref
     
     gmask f = do
         DaisonI $ \st -> do
@@ -85,10 +85,10 @@ instance GHC.ExceptionMonad DaisonI where
             GHC.liftIO $ GHC.gmask $ \io_restore ->
                 let
                     g_restore ds = do
-                        (v,_) <- GHC.liftIO $ io_restore $ unDaisonI st ds ref
+                        (v,_) <- GHC.liftIO $ io_restore $ reflectDaisonI st ds ref
                         return v
                 in
-                    unDaisonI st (f g_restore) ref
+                    reflectDaisonI st (f g_restore) ref
 
 instance Show DaisonIError where
     show DBNotOpen = "database has not been opened"
@@ -121,6 +121,6 @@ getSessionRef = do
     session <- GHC.getSession
     GHC.liftIO $ newIORef session
 
-unDaisonI :: DaisonState -> DaisonI a -> IORef GHC.HscEnv -> IO (a, DaisonState)
-unDaisonI state ds ref = do
+reflectDaisonI :: DaisonState -> DaisonI a -> IORef GHC.HscEnv -> IO (a, DaisonState)
+reflectDaisonI state ds ref = do
     GHC.reflectGhc ((exec ds) state) $ GHC.Session ref
