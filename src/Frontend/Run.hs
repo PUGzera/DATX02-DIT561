@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP #-}
 module Frontend.Run (
-  run
+  run, initSession
 ) where
 
 import Frontend.Base

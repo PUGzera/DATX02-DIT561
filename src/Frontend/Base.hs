@@ -5,6 +5,7 @@ module Frontend.Base (
   baseModuleNames,
   baseExtensions,
   runGhc,
+  emptyState,
   getState,
   modifyState,
   liftGhc,
@@ -36,6 +37,9 @@ data DaisonI a = DaisonI { exec :: DaisonState -> GHC.Ghc (a, DaisonState) }
 
 data DaisonIError = DBNotOpen | NoOpenDB
     deriving Typeable
+
+emptyState :: DaisonState
+emptyState = DaisonState ReadWriteMode Nothing [] [] Nothing (\_ -> return Nothing)
 
 getState :: DaisonI DaisonState
 getState = DaisonI $ \st -> return (st, st)

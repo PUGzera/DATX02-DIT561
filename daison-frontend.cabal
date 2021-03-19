@@ -53,6 +53,7 @@ test-suite unit-tests
   main-is:             UnitTests.hs
   build-depends:       daison-frontend-internal-library,
                        base >= 4.12, 
+                       directory >= 1.3.3.0, 
                        QuickCheck, 
                        HUnit
   default-language:    Haskell2010
