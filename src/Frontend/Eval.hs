@@ -4,7 +4,9 @@ module Frontend.Eval (
   getResult,
   getResults,
   runExpr,
-  runExpr'
+  runExpr',
+  runDecl',
+  runStmt'
 ) where
 
 import qualified Frontend.GHCInterface as GHC
@@ -12,12 +14,11 @@ import qualified Frontend.GHCInterface as GHC
 import qualified System.Process as P
 
 import Prelude
+import Data.Char (isSymbol)
 
 import Frontend.Base
 import Frontend.Context
 import Frontend.Typecheck
-
-import Data.Char (isSymbol)
 
 -- | Send string to the 'less' command via the 'echo' command, making it 
 -- navigable with the arrow keys.
@@ -56,14 +57,12 @@ getResult name = do
 
     return $ GHC.showSDoc dflags $ GHC.ppr term
 
--- | Run expressions in the DaisonI monad and return a string
---   representation of the result.
+-- | Run an expression in the DaisonI monad and return string
+--   representations of the result.
 runExpr' :: String -> DaisonI [String]
-runExpr' expr = do
-    names <- runExpr expr
-    getResults names
+runExpr' = runRetStr runExpr
 
--- | Run expressions in the DaisonI monad.
+-- | Run an expression in the DaisonI monad.
 runExpr :: String -> DaisonI [GHC.Name]
 runExpr expr = do
     category <- getExprCategory expr
@@ -72,7 +71,12 @@ runExpr expr = do
         Just "Declaration" -> runDecl expr
         _                  -> return []
 
--- | Run declarations in the DaisonI monad.
+-- | Run a declaration in the DaisonI monad and return string
+--   representations of the result.
+runDecl' :: String -> DaisonI [String]
+runDecl' = runRetStr runDecl
+
+-- | Run a declaration in the DaisonI monad.
 --   Due to changes in newer versions of GHC (>8.6.5), declarations of the
 --   form "x = y" need to be converted to the statement 'let x = y' in order
 --   to function as intended.
@@ -98,10 +102,21 @@ containsAssignmentOperator expr = cAO' "aaa" expr
         newStr str expr' = tail str ++ [head expr']
         newExpr expr' = tail expr'
 
--- | Run statements in the DaisonI monad.
+-- | Run a statement in the DaisonI monad and return string representations 
+--   of the result.
+runStmt' :: String -> DaisonI [String]
+runStmt' = runRetStr runStmt
+
+-- | Run a statement in the DaisonI monad.
 runStmt :: String -> DaisonI [GHC.Name]
 runStmt stmt = do
     res <- liftGhc $ GHC.execStmt stmt GHC.execOptions
     case GHC.execResult res of
         Left error  -> GHC.throw error
         Right names -> return names
+
+-- | Return string representations of the result instead of GHC.Names.
+runRetStr :: (String -> DaisonI [GHC.Name]) -> (String -> DaisonI [String])
+runRetStr runF = \expr -> do
+    names <- runF expr
+    getResults names
