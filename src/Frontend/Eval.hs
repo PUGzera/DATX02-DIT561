@@ -1,3 +1,4 @@
+-- | Evaluates expressions and runs them in GHC.
 module Frontend.Eval (
   display,
   getResult,

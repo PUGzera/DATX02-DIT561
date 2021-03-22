@@ -1,3 +1,4 @@
+-- | Handles the GHC Context. Imports/extensions
 module Frontend.Context (
   loadModules,
   makeIIModule,

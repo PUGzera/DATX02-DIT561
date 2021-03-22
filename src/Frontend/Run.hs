@@ -1,4 +1,6 @@
 {-# LANGUAGE CPP #-}
+
+-- | The loop of the program.
 module Frontend.Run (
   run, initSession
 ) where

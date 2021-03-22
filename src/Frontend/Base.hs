@@ -1,3 +1,4 @@
+-- | Base of the program. Open databases and settings such as GHC flags are held in 'DaisonState'.
 module Frontend.Base (
   DaisonI(..),
   DaisonState(..),
@@ -23,14 +24,14 @@ import Data.Typeable
 
 import qualified Control.Exception as E
 
-
+-- | Represents the active state of the program.
 data DaisonState = DaisonState {
-    mode :: AccessMode,
-    activeDB :: Maybe String,
-    openDBs :: [String],
-    modules :: [GHC.InteractiveImport],
-    flags :: Maybe GHC.DynFlags,
-    input :: String -> IO (Maybe String)
+    mode :: AccessMode, -- ^ The set mode to access the database. Read/Write/ReadWrite
+    activeDB :: Maybe String, -- ^ The set active database. Queries will run to a database with this name if set.
+    openDBs :: [String], -- ^ A list of all databases that are currently open
+    modules :: [GHC.InteractiveImport], -- ^ List of imported modules
+    flags :: Maybe GHC.DynFlags, -- ^ Extra flags which GHC commands are run with
+    input :: String -> IO (Maybe String) -- Latest input from the user
 }
 
 data DaisonI a = DaisonI { exec :: DaisonState -> GHC.Ghc (a, DaisonState) }
@@ -38,15 +39,20 @@ data DaisonI a = DaisonI { exec :: DaisonState -> GHC.Ghc (a, DaisonState) }
 data DaisonIError = DBNotOpen | NoOpenDB
     deriving Typeable
 
+-- | Represents an empty state with nothing set.
 emptyState :: DaisonState
 emptyState = DaisonState ReadWriteMode Nothing [] [] Nothing (\_ -> return Nothing)
 
+-- | Returns the current state in the `DaisonI` monad.
 getState :: DaisonI DaisonState
 getState = DaisonI $ \st -> return (st, st)
 
+-- | Alter the state somehow.
+-- Can change active DB as an example.
 modifyState :: (DaisonState -> DaisonState) -> DaisonI ()
 modifyState f = DaisonI $ \st -> return ((), f st)
 
+-- | Change the current list of flags
 modifyFlags :: GHC.DynFlags -> DaisonI ()
 modifyFlags dflags = do
     modifyState $ \st -> st { flags = Just dflags }
@@ -103,6 +109,7 @@ instance E.Exception DaisonIError
 liftGhc :: GHC.Ghc a -> DaisonI a
 liftGhc m = DaisonI $ \st -> do a <- m; return (a, st)
 
+-- | List of modules which are imported on startup.
 baseModuleNames :: [GHC.ModuleName]
 baseModuleNames = map GHC.mkModuleName [
     "Prelude",
@@ -111,6 +118,7 @@ baseModuleNames = map GHC.mkModuleName [
     "Data.Data"
     ]
 
+-- | List of GHC extensions which are imported on startup.
 baseExtensions :: [GHC.Extension]
 baseExtensions = [
     GHC.MonadComprehensions,

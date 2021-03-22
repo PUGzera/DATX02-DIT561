@@ -1,3 +1,4 @@
+-- | Typechecking of expressions. Used to determine how an expression should be executed.
 module Frontend.Typecheck (
     exprType,
     exprIsQuery,
