@@ -34,8 +34,11 @@ data DaisonState = DaisonState {
     input :: String -> IO (Maybe String) -- Latest input from the user
 }
 
+-- | Acts as a state transformer for 'DaisonState'.
+-- Replicates a mutable state.
 data DaisonI a = DaisonI { exec :: DaisonState -> GHC.Ghc (a, DaisonState) }
 
+-- | Used to display errors.
 data DaisonIError = DBNotOpen | NoOpenDB
     deriving Typeable
 
@@ -106,6 +109,7 @@ instance Show DaisonIError where
     
 instance E.Exception DaisonIError
 
+-- | Lift GHC functions to DaisonI.
 liftGhc :: GHC.Ghc a -> DaisonI a
 liftGhc m = DaisonI $ \st -> do a <- m; return (a, st)
 
@@ -125,6 +129,7 @@ baseExtensions = [
     GHC.DeriveDataTypeable
     ]
 
+-- | Run GHC functions in DaisonI.
 runGhc :: DaisonState -> DaisonI a -> IO (a, DaisonState)
 runGhc state ds = GHC.runGhc (Just GHC.libdir) ((exec ds) state)
 

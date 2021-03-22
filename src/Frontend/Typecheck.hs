@@ -15,10 +15,10 @@ import System.IO (Handle)
 import Database.Daison (AccessMode(..))
 import Data.List
 
+-- | Find the GHC evaluated expression type.
 exprType :: String -> DaisonI String
 exprType expr = do
   dflags <- liftGhc GHC.getSessionDynFlags
-
   t <- liftGhc $ GHC.exprType GHC.TM_Inst expr
   unqual <- liftGhc GHC.getPrintUnqual
   return $ GHC.showSDocForUser dflags unqual (GHC.pprTypeForUser t)
@@ -55,6 +55,7 @@ exprIsQuery expr = do
         isDaison :: String -> Bool
         isDaison = ("Daison" `isPrefixOf`)
 
+-- | Categorize expression types to either declarations or statements.
 getExprCategory :: String -> DaisonI (Maybe String)
 getExprCategory expr = do
     t <- GHC.gcatch (Right <$> (exprType expr)) (\e -> return (Left (possibleDeclaration e)))

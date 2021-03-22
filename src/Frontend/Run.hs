@@ -24,6 +24,7 @@ instance Show AccessMode where
     show ReadWriteMode = "ReadWriteMode"
     show ReadOnlyMode = "ReadOnlyMode"
 
+-- | Start a session with initial values and then wait for user input.
 run :: (String -> IO (Maybe String)) -> IO ()
 run input = do
 #if !defined(mingw32_HOST_OS) && !defined(TEST)
@@ -43,6 +44,7 @@ run input = do
    _activeDB  :: Database
    _openDBs   :: [(String, Database)]
 -}
+-- | Set default values for the session.
 initSession :: DaisonI ()
 initSession = do
     dflags <- liftGhc GHC.getSessionDynFlags
