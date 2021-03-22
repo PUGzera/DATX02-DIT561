@@ -17,6 +17,7 @@ import Frontend.Base
 import Frontend.Context
 import Frontend.Typecheck
 
+import Data.Char (isSymbol)
 
 -- | Send string to the 'less' command via the 'echo' command, making it 
 -- navigable with the arrow keys.
@@ -72,8 +73,30 @@ runExpr expr = do
         _                  -> return []
 
 -- | Run declarations in the DaisonI monad.
+--   Due to changes in newer versions of GHC (>8.6.5), declarations of the
+--   form "x = y" need to be converted to the statement 'let x = y' in order
+--   to function as intended.
 runDecl :: String -> DaisonI [GHC.Name]
-runDecl = liftGhc . GHC.runDecls
+runDecl expr = case containsAssignmentOperator expr of
+        True -> runStmt $ "let " ++ expr
+        False -> (liftGhc . GHC.runDecls) expr
+
+-- | Check if a string contains the assignment operator "=".
+--   Returns true when an equals sign occurs without any symbols surrounding it.
+containsAssignmentOperator :: String -> Bool
+containsAssignmentOperator expr = cAO' "aaa" expr
+    where
+        cAO' str@(a:'=':c:"") ""
+            | noSurroundingSymbols str = True
+            | otherwise                = False
+        cAO' str@(a:'=':c:"") expr'
+            | noSurroundingSymbols str = True
+            | otherwise                = cAO' (newStr str expr') (newExpr expr')
+        cAO' str expr' = cAO' (newStr str expr') (newExpr expr')
+
+        noSurroundingSymbols (a:b:c:"") = (not . all id . map isSymbol) $ a:c:""
+        newStr str expr' = tail str ++ [head expr']
+        newExpr expr' = tail expr'
 
 -- | Run statements in the DaisonI monad.
 runStmt :: String -> DaisonI [GHC.Name]
