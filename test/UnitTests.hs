@@ -12,11 +12,15 @@ import System.IO (stderr, openTempFile)
 import GHC.IO.Handle
 
 import Frontend.Base
+import Frontend.Eval
 import Frontend.Run (initSession)
 import qualified Frontend.GHCInterface as GHC
 import Frontend.Typecheck
 
 -- Test labels
+labelEvalRunDecl = "'runDecl \"t = 3\"'"
+labelEvalRunExpr = "'runExpr \"1+2\"'"
+labelEvalRunStmt = "'runStmt \"1+2\"'"
 labelTCId     = ":t id"
 labelTCIdSpec = ":t id :: Int -> Int"
 labelTCIdNum  = ":t id 0"
@@ -28,6 +32,9 @@ labelQCND2    = "'print' is not a Daison query"
 labelQCND3    = "'1+2' is not a Daison query"
 
 -- Expected test values for tests that use assertEqual
+expEvalRunDecl     = ["3"]
+expEvalRunExpr     = ["3"]
+expEvalRunStmt     = ["3"]
 expTCId     = "a -> a"
 expTCIdSpec = "Int -> Int"
 expTCIdNum  = "Num a => a"
@@ -35,6 +42,9 @@ expTCStr1   = "[Char]"
 expTCStr2   = "String"
 
 -- Expressions to test
+argEvalRunDecl  = unDaisonI $ runExpr' "test = 3"
+argEvalRunExpr  = unDaisonI $ runExpr' "1+2"
+argEvalRunStmt  = unDaisonI $ runExpr' "1+2"
 argTCId     = unDaisonI $ exprType "id"
 argTCIdSpec = unDaisonI $ exprType "id :: Int -> Int"
 argTCIdNum  = unDaisonI $ exprType "id 0"
@@ -45,11 +55,25 @@ argQCND1    = not $ unDaisonI $ exprIsQuery "createTable"
 argQCND2    = not $ unDaisonI $ exprIsQuery "print"
 argQCND3    = not $ unDaisonI $ exprIsQuery "1+2"
 
-
--- Tests
+-- Example tests
 foo x = (1,x-1)
 test1 = HUnit.TestCase (assertEqual "for (foo 3)," (1,2) (foo 3))
 test2 = HUnit.TestCase (assertBool "true test," True)
+
+-- Eval Tests
+-- | Check if the front-end can create a declaration.
+testEvalRunDecl :: HUnit.Test
+testEvalRunDecl = HUnit.TestCase $ assertEqual labelEvalRunDecl expEvalRunDecl argEvalRunDecl
+
+-- | Check if the front-end can run an expression without specifying whether it is a declarationn or a statement.
+testEvalRunExpr :: HUnit.Test
+testEvalRunExpr = HUnit.TestCase $ assertEqual labelEvalRunExpr expEvalRunExpr argEvalRunExpr
+
+-- | Check if the front-end can run a statement.
+testEvalRunStmt :: HUnit.Test
+testEvalRunStmt = HUnit.TestCase $ assertEqual labelEvalRunStmt expEvalRunStmt argEvalRunStmt
+
+-- Typecheck Tests
 testTCId = HUnit.TestCase $ assertEqual labelTCId expTCId argTCId 
 testTCIdSpec = HUnit.TestCase $ assertEqual labelTCIdSpec expTCIdSpec argTCIdSpec
 testTCIdNum = HUnit.TestCase $ assertEqual labelTCIdNum expTCIdNum argTCIdNum
@@ -71,8 +95,9 @@ main = do
 
 unitTestList :: HUnit.Test
 unitTestList = HUnit.TestList [
-    HUnit.TestLabel "test1" test1, 
-    HUnit.TestLabel "test2" test2,
+    HUnit.TestLabel labelEvalRunDecl testEvalRunDecl,
+    HUnit.TestLabel labelEvalRunExpr testEvalRunExpr,
+    HUnit.TestLabel labelEvalRunStmt testEvalRunStmt,
     HUnit.TestLabel labelTCId testTCId,
     HUnit.TestLabel labelTCIdSpec testTCIdSpec,
     HUnit.TestLabel labelTCIdNum testTCIdNum,
