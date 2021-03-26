@@ -43,7 +43,6 @@ addImport im = do
     st <- getState
     liftGhc $ GHC.setContext (modules st)
 
--- addExtension MonadComprehension to add monad comprehension later
 -- | Add a 'GHC.Extension' to the session.
 addExtension :: GHC.Extension -> DaisonI ()
 addExtension ext = do
