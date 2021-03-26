@@ -81,12 +81,17 @@ runDecl' = runRetStr runDecl
 --   form "x = y" need to be converted to the statement 'let x = y' in order
 --   to function as intended.
 runDecl :: String -> DaisonI [GHC.Name]
-runDecl expr = case containsAssignmentOperator expr of
+runDecl expr = case isVariableAssignment expr of
         True -> runStmt $ "let " ++ expr
         False -> (liftGhc . GHC.runDecls) expr
 
+-- | Check if a string assigns a value to one or more variables.
+--   Returns True if this is the case.
+isVariableAssignment :: String -> Bool
+isVariableAssignment expr = containsAssignmentOperator expr && noDeclKeywords expr
+
 -- | Check if a string contains the assignment operator "=".
---   Returns true when an equals sign occurs without any symbols surrounding it.
+--   Returns True when an equals sign occurs without any symbols surrounding it.
 containsAssignmentOperator :: String -> Bool
 containsAssignmentOperator expr = cAO' "aaa" expr
     where
@@ -101,6 +106,17 @@ containsAssignmentOperator expr = cAO' "aaa" expr
         noSurroundingSymbols (a:b:c:"") = (not . all id . map isSymbol) $ a:c:""
         newStr str expr' = tail str ++ [head expr']
         newExpr expr' = tail expr'
+
+-- | Returns True if the string does not start with a declaration keyword.
+--   Ignores leading whitespace.
+noDeclKeywords :: String -> Bool
+noDeclKeywords expr = not $ (head (words expr)) `elem` declKeywords
+
+-- | Contains the keywords that make up declarations other than the
+--   `x = y` declaration, according to the GHCI user guide.
+declKeywords :: [String]
+declKeywords = ["data", "type", "newtype", "class", "instance",
+                "deriving", "foreign"]
 
 -- | Run a statement in the DaisonI monad and return string representations 
 --   of the result.
