@@ -1,4 +1,5 @@
 {-# LANGUAGE MonadComprehensions #-}
+-- | Unit testing for specific functions.
 module Main (main) where
 
 import Test.QuickCheck
@@ -87,11 +88,6 @@ argQCD      = unDaisonI $ exprIsQuery "createTable (table [])"
 argQCND1    = not $ unDaisonI $ exprIsQuery "createTable"
 argQCND2    = not $ unDaisonI $ exprIsQuery "print"
 argQCND3    = not $ unDaisonI $ exprIsQuery "1+2"
-
--- Example tests
-foo x = (1,x-1)
-test1 = HUnit.TestCase (assertEqual "for (foo 3)," (1,2) (foo 3))
-test2 = HUnit.TestCase (assertBool "true test," True)
 
 -- Eval Tests
 -- | Check if the front-end can create a declaration.

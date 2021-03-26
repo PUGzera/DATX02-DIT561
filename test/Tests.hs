@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable, MonadComprehensions #-}
+-- | Functional tests, such as reading/writing to a database.
 module Main (main) where
     
 import Frontend.Run
