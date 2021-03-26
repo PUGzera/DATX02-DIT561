@@ -6,12 +6,15 @@ import Frontend.Run
 
 import Database.Daison
 import Test.QuickCheck
+import Test.QuickCheck.Test
 
+import Control.Monad
 import Data.Data
 import Data.IORef
 import System.IO (stdout, openTempFile)
 import GHC.IO.Handle
 import System.Directory
+import System.Exit
 
 --  Test data types
 
@@ -116,4 +119,5 @@ prop_readFromDatabase testData = ioProperty $ do
 
 main :: IO ()
 main = do
-    quickCheckWith (stdArgs {maxSuccess = 10}) prop_readFromDatabase
+    result <- quickCheckWithResult (stdArgs {maxSuccess = 10}) prop_readFromDatabase
+    unless (isSuccess result) exitFailure
