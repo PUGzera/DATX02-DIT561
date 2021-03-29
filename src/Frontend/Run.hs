@@ -103,16 +103,28 @@ cmdListOpenDBs = do
     GHC.liftIO $ print $ openDBs state
     loop
 
+setStartupExtensions :: DaisonI ()
+setStartupExtensions = do
+    args <- GHC.liftIO getArgs
+    let exts = map readExtension (filter (\a -> "-X " `isPrefixOf` a) args)
+    mapM_ addExtension exts
 
 
---cmdSet :: String -> DaisonI ()
---cmdSet input = do
+cmdSet :: String -> DaisonI ()
+cmdSet input = case ("-X "`isPrefixOf` input) of
+    True -> do
+        let ext = readExtension input --ToDo: check for pattern match fail
+        addExtension ext
+    False -> return ()
 
 -- | Updates the current directory
 cmdCd :: String -> DaisonI ()
 cmdCd input = do
     let arg = removeDoubleQuotes $ (words input) !! 1
     cd arg
+    st <- getState
+    runExpr $ "setCurrentDirectory " ++ (currentDirectory st)
+    return ()
 
 -- | Opens a database within the session and marks it as active,
 --   while keeping track of other open databases.
