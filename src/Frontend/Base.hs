@@ -36,7 +36,7 @@ data DaisonState = DaisonState {
 
 -- | Acts as a state transformer for 'DaisonState'.
 -- Replicates a mutable state.
-data DaisonI a = DaisonI { exec :: DaisonState -> GHC.Ghc (a, DaisonState) }
+newtype DaisonI a = DaisonI{ exec :: DaisonState -> GHC.Ghc (a, DaisonState) }
 
 -- | Used to display errors.
 data DaisonIError = DBNotOpen | NoOpenDB
@@ -67,8 +67,8 @@ modifyFlags dflags = do
 instance Monad DaisonI where
     return x  = DaisonI $ \st -> return (x, st)
     (>>=) x f = DaisonI $ \st -> do
-        (v, st') <- (exec x) st
-        (exec (f v)) st'
+        (v, st') <- exec x st
+        exec (f v) st'
 
 instance Applicative DaisonI where
     pure  = return
@@ -92,7 +92,7 @@ instance GHC.ExceptionMonad DaisonI where
             (reflectDaisonI st m ref)
             $ \e -> reflectDaisonI st (h e) ref
     
-    gmask f = do
+    gmask f =
         DaisonI $ \st -> do
             ref <- getSessionRef
             GHC.liftIO $ GHC.gmask $ \io_restore ->
@@ -131,7 +131,7 @@ baseExtensions = [
 
 -- | Run GHC functions in DaisonI.
 runGhc :: DaisonState -> DaisonI a -> IO (a, DaisonState)
-runGhc state ds = GHC.runGhc (Just GHC.libdir) ((exec ds) state)
+runGhc state ds = GHC.runGhc (Just GHC.libdir) (exec ds state)
 
 getSessionRef :: GHC.Ghc (IORef GHC.HscEnv)
 getSessionRef = do
@@ -139,5 +139,4 @@ getSessionRef = do
     GHC.liftIO $ newIORef session
 
 reflectDaisonI :: DaisonState -> DaisonI a -> IORef GHC.HscEnv -> IO (a, DaisonState)
-reflectDaisonI state ds ref = do
-    GHC.reflectGhc ((exec ds) state) $ GHC.Session ref
+reflectDaisonI state ds ref = GHC.reflectGhc (exec ds state) $ GHC.Session ref

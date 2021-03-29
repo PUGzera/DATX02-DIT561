@@ -39,7 +39,7 @@ addImport' mod =
 -- | Add a 'GHC.InteractiveImport' to the session.
 addImport :: GHC.InteractiveImport -> DaisonI ()
 addImport im = do
-    modifyState $ \st -> st { modules = im:(modules st) }
+    modifyState $ \st -> st { modules = im : modules st }
     st <- getState
     liftGhc $ GHC.setContext (modules st)
 

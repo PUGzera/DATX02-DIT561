@@ -37,7 +37,7 @@ display showable = do
     res <- GHC.liftIO $ GHC.catch sendToLess $
             \e -> (return . Left . show) (e :: GHC.IOException)
     GHC.liftIO $ case res of
-        Left _ -> putStrLn . show $ showable
+        Left _ -> print showable
         Right () -> return ()
 
 -- | Get string representations of the results from e.g. runExpr.
@@ -81,9 +81,10 @@ runDecl' = runRetStr runDecl
 --   form "x = y" need to be converted to the statement 'let x = y' in order
 --   to function as intended.
 runDecl :: String -> DaisonI [GHC.Name]
-runDecl expr = case isVariableAssignment expr of
-        True -> runStmt $ "let " ++ expr
-        False -> (liftGhc . GHC.runDecls) expr
+runDecl expr = 
+    if isVariableAssignment expr
+        then runStmt $ "let " ++ expr
+        else (liftGhc . GHC.runDecls) expr
 
 -- | Check if a string assigns a value to one or more variables.
 --   Returns True if this is the case.
@@ -93,7 +94,7 @@ isVariableAssignment expr = containsAssignmentOperator expr && noDeclKeywords ex
 -- | Check if a string contains the assignment operator "=".
 --   Returns True when an equals sign occurs without any symbols surrounding it.
 containsAssignmentOperator :: String -> Bool
-containsAssignmentOperator expr = cAO' "aaa" expr
+containsAssignmentOperator = cAO' "aaa"
     where
         cAO' str@(a:'=':c:"") ""
             | noSurroundingSymbols str = True
@@ -103,14 +104,14 @@ containsAssignmentOperator expr = cAO' "aaa" expr
             | otherwise                = cAO' (newStr str expr') (newExpr expr')
         cAO' str expr' = cAO' (newStr str expr') (newExpr expr')
 
-        noSurroundingSymbols (a:b:c:"") = (not . all id . map isSymbol) $ a:c:""
+        noSurroundingSymbols (a:b:c:"") = (not . all isSymbol) $ a:c:""
         newStr str expr' = tail str ++ [head expr']
-        newExpr expr' = tail expr'
+        newExpr = tail
 
 -- | Returns True if the string does not start with a declaration keyword.
 --   Ignores leading whitespace.
 noDeclKeywords :: String -> Bool
-noDeclKeywords expr = not $ (head (words expr)) `elem` declKeywords
+noDeclKeywords expr = head (words expr) `notElem` declKeywords
 
 -- | Contains the keywords that make up declarations other than the
 --   `x = y` declaration, according to the GHCI user guide.
@@ -133,6 +134,6 @@ runStmt stmt = do
 
 -- | Return string representations of the result instead of GHC.Names.
 runRetStr :: (String -> DaisonI [GHC.Name]) -> (String -> DaisonI [String])
-runRetStr runF = \expr -> do
+runRetStr runF expr = do
     names <- runF expr
     getResults names
