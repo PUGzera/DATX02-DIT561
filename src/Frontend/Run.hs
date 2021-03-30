@@ -108,6 +108,7 @@ setStartupExtensions = do
     args <- GHC.liftIO getArgs
     let exts = map readExtension (filter (\a -> "-X " `isPrefixOf` a) args)
     mapM_ addExtension exts
+    loop
 
 
 cmdSet :: String -> DaisonI ()
@@ -115,7 +116,8 @@ cmdSet input = case ("-X "`isPrefixOf` input) of
     True -> do
         let ext = readExtension input --ToDo: check for pattern match fail
         addExtension ext
-    False -> return ()
+        loop
+    False -> loop
 
 -- | Updates the current directory
 cmdCd :: String -> DaisonI ()
@@ -123,8 +125,8 @@ cmdCd input = do
     let arg = removeDoubleQuotes $ (words input) !! 1
     cd arg
     st <- getState
-    runExpr $ "setCurrentDirectory " ++ (currentDirectory st)
-    return ()
+    runExpr $ "setCurrentDirectory \"" ++ (currentDirectory st) ++ "\""
+    loop
 
 -- | Opens a database within the session and marks it as active,
 --   while keeping track of other open databases.

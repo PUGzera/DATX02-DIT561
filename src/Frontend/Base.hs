@@ -105,7 +105,8 @@ baseModuleNames = map GHC.mkModuleName [
     "Prelude",
     "Database.Daison", 
     "Control.Monad.IO.Class",
-    "Data.Data"
+    "Data.Data",
+    "System.Directory"
     ]
 
 baseExtensions :: [GHC.Extension]

@@ -34,7 +34,10 @@ cd s = do
     let ud = cd' s $ winToUnix $ currentDirectory st
     id <- GHC.liftIO $ doesDirectoryExist ud
     case id of
-        True -> modifyState (\st -> st { currentDirectory = ud } )
+        True -> do
+            modifyState (\st -> st { currentDirectory = ud } )
+            GHC.liftIO $ print ud
+            return ()
         False -> return ()
 
 readExtension :: String -> GHC.Extension
