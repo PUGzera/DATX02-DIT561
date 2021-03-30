@@ -16,6 +16,8 @@ import System.Directory
 
 import Database.Daison
 
+import Data.Maybe
+
 import Data.List
 import Control.Concurrent (myThreadId)
 
@@ -73,6 +75,7 @@ loop = do
             | ":open "   `isPrefixOf` input -> cmdOpen input
             | ":t "      `isPrefixOf` input -> cmdType input
             | ":cd "     `isPrefixOf` input -> cmdCd input
+            | ":set "     `isPrefixOf` input -> cmdSet input
             | otherwise                     -> cmdExpr input
         `GHC.gcatch`
             handleError state
@@ -106,18 +109,26 @@ cmdListOpenDBs = do
 setStartupExtensions :: DaisonI ()
 setStartupExtensions = do
     args <- GHC.liftIO getArgs
-    let exts = map readExtension (filter (\a -> "-X " `isPrefixOf` a) args)
-    mapM_ addExtension exts
+    let exts = map (\e -> readExtension $ drop 2 e) (filter (\a -> "-X" `isPrefixOf` a) $ map (\i -> removeDoubleQuotes $ (words i) !! 1 )args)
+    mapM_ addExtension $ catMaybes exts
     loop
 
 
 cmdSet :: String -> DaisonI ()
-cmdSet input = case ("-X "`isPrefixOf` input) of
-    True -> do
-        let ext = readExtension input --ToDo: check for pattern match fail
-        addExtension ext
-        loop
-    False -> loop
+cmdSet input = do
+    let arg = removeDoubleQuotes $ (words input) !! 1
+    case ("X" `isPrefixOf` arg) of
+        True -> do
+            case readExtension $ drop 1 arg of
+                Just ext -> do
+                    addExtension ext
+                    loop
+                Nothing -> do
+                    GHC.liftIO $ print "no extension with that name exists"
+                    loop
+        False -> do
+            GHC.liftIO $ print "not an extension name"
+            loop
 
 -- | Updates the current directory
 cmdCd :: String -> DaisonI ()
