@@ -45,7 +45,7 @@ data DaisonIError = DBNotOpen | NoOpenDB
 
 -- | Represents an empty state with nothing set.
 emptyState :: DaisonState
-emptyState = DaisonState ReadWriteMode Nothing [] [] Nothing (\_ -> return Nothing)
+emptyState = DaisonState ReadWriteMode Nothing [] [] Nothing (\_ -> return Nothing) "" -- may need to get actual current directory
 
 -- | Returns the current state in the `DaisonI` monad.
 getState :: DaisonI DaisonState
