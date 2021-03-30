@@ -31,7 +31,7 @@ data DaisonState = DaisonState {
     openDBs :: [String], -- ^ A list of all databases that are currently open
     modules :: [GHC.InteractiveImport], -- ^ List of imported modules
     flags :: Maybe GHC.DynFlags, -- ^ Extra flags which GHC commands are run with
-    input :: String -> IO (Maybe String) -- Latest input from the user
+    input :: String -> IO (Maybe String), -- Latest input from the user
     currentDirectory :: String
 }
 
