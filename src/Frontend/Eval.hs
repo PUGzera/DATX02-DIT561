@@ -1,9 +1,12 @@
+-- | Evaluates expressions and runs them in GHC.
 module Frontend.Eval (
   display,
   getResult,
   getResults,
   runExpr,
-  runExpr'
+  runExpr',
+  runDecl',
+  runStmt'
 ) where
 
 import qualified Frontend.GHCInterface as GHC
@@ -11,11 +14,11 @@ import qualified Frontend.GHCInterface as GHC
 import qualified System.Process as P
 
 import Prelude
+import Data.Char (isSymbol)
 
 import Frontend.Base
 import Frontend.Context
 import Frontend.Typecheck
-
 
 -- | Send string to the 'less' command via the 'echo' command, making it 
 -- navigable with the arrow keys.
@@ -34,7 +37,7 @@ display showable = do
     res <- GHC.liftIO $ GHC.catch sendToLess $
             \e -> (return . Left . show) (e :: GHC.IOException)
     GHC.liftIO $ case res of
-        Left _ -> putStrLn . show $ showable
+        Left _ -> print showable
         Right () -> return ()
 
 -- | Get string representations of the results from e.g. runExpr.
@@ -54,14 +57,12 @@ getResult name = do
 
     return $ GHC.showSDoc dflags $ GHC.ppr term
 
--- | Run expressions in the DaisonI monad and return a string
---   representation of the result.
+-- | Run an expression in the DaisonI monad and return string
+--   representations of the result.
 runExpr' :: String -> DaisonI [String]
-runExpr' expr = do
-    names <- runExpr expr
-    getResults names
+runExpr' = runRetStr runExpr
 
--- | Run expressions in the DaisonI monad.
+-- | Run an expression in the DaisonI monad.
 runExpr :: String -> DaisonI [GHC.Name]
 runExpr expr = do
     category <- getExprCategory expr
@@ -70,14 +71,69 @@ runExpr expr = do
         Just "Declaration" -> runDecl expr
         _                  -> return []
 
--- | Run declarations in the DaisonI monad.
-runDecl :: String -> DaisonI [GHC.Name]
-runDecl = liftGhc . GHC.runDecls
+-- | Run a declaration in the DaisonI monad and return string
+--   representations of the result.
+runDecl' :: String -> DaisonI [String]
+runDecl' = runRetStr runDecl
 
--- | Run statements in the DaisonI monad.
+-- | Run a declaration in the DaisonI monad.
+--   Due to changes in newer versions of GHC (>8.6.5), declarations of the
+--   form "x = y" need to be converted to the statement 'let x = y' in order
+--   to function as intended.
+runDecl :: String -> DaisonI [GHC.Name]
+runDecl expr = 
+    if isVariableAssignment expr
+        then runStmt $ "let " ++ expr
+        else (liftGhc . GHC.runDecls) expr
+
+-- | Check if a string assigns a value to one or more variables.
+--   Returns True if this is the case.
+isVariableAssignment :: String -> Bool
+isVariableAssignment expr = containsAssignmentOperator expr && noDeclKeywords expr
+
+-- | Check if a string contains the assignment operator "=".
+--   Returns True when an equals sign occurs without any symbols surrounding it.
+containsAssignmentOperator :: String -> Bool
+containsAssignmentOperator = cAO' "aaa"
+    where
+        cAO' str@(a:'=':c:"") ""
+            | noSurroundingSymbols str = True
+            | otherwise                = False
+        cAO' str@(a:'=':c:"") expr'
+            | noSurroundingSymbols str = True
+            | otherwise                = cAO' (newStr str expr') (newExpr expr')
+        cAO' str expr' = cAO' (newStr str expr') (newExpr expr')
+
+        noSurroundingSymbols (a:b:c:"") = (not . all isSymbol) $ a:c:""
+        newStr str expr' = tail str ++ [head expr']
+        newExpr = tail
+
+-- | Returns True if the string does not start with a declaration keyword.
+--   Ignores leading whitespace.
+noDeclKeywords :: String -> Bool
+noDeclKeywords expr = head (words expr) `notElem` declKeywords
+
+-- | Contains the keywords that make up declarations other than the
+--   `x = y` declaration, according to the GHCI user guide.
+declKeywords :: [String]
+declKeywords = ["data", "type", "newtype", "class", "instance",
+                "deriving", "foreign"]
+
+-- | Run a statement in the DaisonI monad and return string representations 
+--   of the result.
+runStmt' :: String -> DaisonI [String]
+runStmt' = runRetStr runStmt
+
+-- | Run a statement in the DaisonI monad.
 runStmt :: String -> DaisonI [GHC.Name]
 runStmt stmt = do
     res <- liftGhc $ GHC.execStmt stmt GHC.execOptions
     case GHC.execResult res of
         Left error  -> GHC.throw error
         Right names -> return names
+
+-- | Return string representations of the result instead of GHC.Names.
+runRetStr :: (String -> DaisonI [GHC.Name]) -> (String -> DaisonI [String])
+runRetStr runF expr = do
+    names <- runF expr
+    getResults names

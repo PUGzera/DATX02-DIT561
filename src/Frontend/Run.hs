@@ -1,6 +1,8 @@
 {-# LANGUAGE CPP #-}
+
+-- | The loop of the program.
 module Frontend.Run (
-  run
+  run, initSession
 ) where
 
 import Frontend.Base
@@ -29,6 +31,7 @@ instance Show AccessMode where
     show ReadWriteMode = "ReadWriteMode"
     show ReadOnlyMode = "ReadOnlyMode"
 
+-- | Start a session with initial values and then wait for user input.
 run :: (String -> IO (Maybe String)) -> IO ()
 run input = do
 #if !defined(mingw32_HOST_OS) && !defined(TEST)
@@ -48,13 +51,14 @@ run input = do
    _activeDB  :: Database
    _openDBs   :: [(String, Database)]
 -}
+-- | Set default values for the session.
 initSession :: DaisonI ()
 initSession = do
     dflags <- liftGhc GHC.getSessionDynFlags
     liftGhc $ GHC.setSessionDynFlags dflags
-    mapM_ addImport $ map makeIIDecl baseModuleNames
+    mapM_ (addImport . makeIIDecl) baseModuleNames
     mapM_ addExtension baseExtensions
-    runExpr $ "let _openDBs = [] :: [(String, Database)]"
+    runExpr "let _openDBs = [] :: [(String, Database)]"
     return ()
 
 loop :: DaisonI ()
@@ -83,10 +87,10 @@ loop = do
 closeDBs :: DaisonI ()
 closeDBs = do
     state <- getState
-    sequence_ $ map (\database -> runExpr (sCloseDB database)) $ openDBs state
+    mapM_ (runExpr . sCloseDB) (openDBs state)
 
 getPrompt :: DaisonState -> String
-getPrompt state = do
+getPrompt state =
     case activeDB state of
         Nothing   -> "Daison> "
         Just file -> "Daison (" ++ file ++ ")> "
@@ -95,7 +99,7 @@ removeCmd :: String -> String
 removeCmd = unwords . tail . words
 
 removeDoubleQuotes :: String -> String
-removeDoubleQuotes = filter (\ch -> ch /= '"')
+removeDoubleQuotes = filter (/= '"')
 
 cmdQuit :: DaisonI ()
 cmdQuit = return ()
@@ -145,13 +149,12 @@ cmdCd input = do
 cmdOpen :: String -> DaisonI ()
 cmdOpen input = do
     state <- getState
-    let arg = removeDoubleQuotes $ (words input) !! 1
+    let arg = removeDoubleQuotes $ words input !! 1
     let dbs = openDBs state
     runExpr $ "_activeDB <- openDB \"" ++ arg ++ "\""
-    case arg `elem` dbs of
-        True -> do
-            modifyState $ \st -> st{activeDB = Just arg}
-        False -> do
+    if arg `elem` dbs
+        then modifyState $ \st -> st{activeDB = Just arg}
+        else do
             updateSessionVariable "_openDBs" $ sAddDB arg
             modifyState $ \st -> st{activeDB = Just arg,
                                     openDBs = arg : dbs}
@@ -164,11 +167,11 @@ cmdOpen input = do
 cmdClose :: String -> DaisonI ()
 cmdClose input = do
     state <- getState
-    let arg = removeDoubleQuotes $ (words input) !! 1
+    let arg = removeDoubleQuotes $ words input !! 1
     let dbs = openDBs state
-    case arg `elem` dbs of
-        True -> do
-            let dbs' = filter (\str -> str /= arg) dbs
+    if arg `elem` dbs
+        then do
+            let dbs' = filter (/= arg) dbs
             let newActive = case dbs' of
                     [] -> Nothing
                     _ -> Just $ head dbs'
@@ -178,7 +181,7 @@ cmdClose input = do
             modifyState $ \st -> st{activeDB = newActive,
                                     openDBs = dbs'}
             loop
-        False -> GHC.throw DBNotOpen
+        else GHC.throw DBNotOpen
 
 cmdImport :: String -> DaisonI ()
 cmdImport input = do
@@ -195,9 +198,7 @@ cmdType input = do
 cmdExpr :: String -> DaisonI ()
 cmdExpr expr = do
     isQuery <- exprIsQuery expr
-    case isQuery of
-        True -> runDaisonStmt expr -- TODO: Find a way to read the result outside of the session
-        False -> runExpr expr
+    if isQuery then runDaisonStmt expr else runExpr expr -- TODO: Find a way to read the result outside of the session
     loop
 
 -- | Perform a Daison transaction.
@@ -217,7 +218,7 @@ runDaisonStmt stmt = do
             runExpr "it"
 
 handleError :: DaisonState -> GHC.SomeException -> DaisonI ()
-handleError state e = do 
+handleError state e =
         do
             GHC.liftIO $ print (e :: GHC.SomeException)
             loop
