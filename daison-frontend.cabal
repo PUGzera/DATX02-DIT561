@@ -36,9 +36,15 @@ test-suite tests
 
 executable daison-frontend
   main-is:             Main.hs
+  other-modules:       Frontend.Base
+                       Frontend.Context
+                       Frontend.Eval
+                       Frontend.GHCInterface
+                       Frontend.Typecheck
+                       Frontend.Run
+                       Frontend.Util
   -- other-extensions:    
-  build-depends:       daison-frontend-internal-library,
-                       base >=4.12, 
+  build-depends:       base >=4.12, 
                        daison >=0.1, 
                        ghc >= 8.6 && < 9, 
                        ghc-paths >=0.1 && <0.2, 
