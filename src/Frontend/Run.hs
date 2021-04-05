@@ -117,7 +117,7 @@ setStartupExtensions = do
     mapM_ addExtension $ catMaybes exts
     loop
 
-
+-- | Set extensions
 cmdSet :: String -> DaisonI ()
 cmdSet input = do
     let arg = removeDoubleQuotes $ (words input) !! 1
@@ -185,7 +185,9 @@ cmdClose input = do
 
 cmdImport :: String -> DaisonI ()
 cmdImport input = do
-    addImport $ makeIIDecl $ GHC.mkModuleName $ removeCmd input
+    target <- liftGhc $ GHC.guessTarget (removeCmd input) Nothing
+    liftGhc $ GHC.setTargets [target]
+    liftGhc $ GHC.load GHC.LoadAllTargets
     loop
 
 cmdType :: String -> DaisonI ()
