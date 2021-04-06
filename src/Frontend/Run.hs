@@ -75,11 +75,12 @@ loop = do
         Just input
             | ":close "  `isPrefixOf` input -> cmdClose input
             | ":db "     `isPrefixOf` input -> cmdOpen input
-            | ":import " `isPrefixOf` input -> cmdImport input
+            | ":l "      `isPrefixOf` input -> cmdImport input
             | ":open "   `isPrefixOf` input -> cmdOpen input
             | ":t "      `isPrefixOf` input -> cmdType input
             | ":cd "     `isPrefixOf` input -> cmdCd input
-            | ":set "     `isPrefixOf` input -> cmdSet input
+            | ":set "    `isPrefixOf` input -> cmdSet input
+            | ":m"       `isPrefixOf` input -> cmdModule input
             | otherwise                     -> cmdExpr input
         `GHC.gcatch`
             handleError state
@@ -187,7 +188,12 @@ cmdImport :: String -> DaisonI ()
 cmdImport input = do
     target <- liftGhc $ GHC.guessTarget (removeCmd input) Nothing
     liftGhc $ GHC.setTargets [target]
-    liftGhc $ GHC.load GHC.LoadAllTargets
+    res <- liftGhc $ GHC.load GHC.LoadAllTargets
+    loop
+
+cmdModule :: String -> DaisonI ()
+cmdModule input = do
+    addImport $ makeIIDecl $ GHC.mkModuleName $ removeCmd input
     loop
 
 cmdType :: String -> DaisonI ()
