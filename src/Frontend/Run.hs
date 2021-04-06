@@ -8,6 +8,7 @@ module Frontend.Run (
 import Frontend.Base
 import Frontend.Context
 import Frontend.Eval
+import Frontend.Format
 import Frontend.Typecheck
 import qualified Frontend.GHCInterface as GHC
 
@@ -156,11 +157,12 @@ cmdType input = do
 cmdExpr :: String -> DaisonI ()
 cmdExpr expr = do
     isQuery <- exprIsQuery expr
-    if isQuery then runDaisonStmt expr else runExpr expr -- TODO: Find a way to read the result outside of the session
+    if isQuery then runDaisonStmt expr else runExpr expr
     loop
 
 -- | Perform a Daison transaction.
 --   Throws an exception if no database has been opened.
+--   Displays the result in a navigable format if it is not short.
 runDaisonStmt :: String -> DaisonI [GHC.Name]
 runDaisonStmt stmt = do
     state <- getState
@@ -172,8 +174,10 @@ runDaisonStmt stmt = do
     case activeDB state of
         Nothing -> GHC.throw NoOpenDB
         Just _  -> do
-            runExpr query
-            runExpr "it"
+            out <- runExpr query
+            res <- getResults out
+            formatTable (head res) stmt >>= display
+            return out
 
 handleError :: DaisonState -> GHC.SomeException -> DaisonI ()
 handleError state e = 

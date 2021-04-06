@@ -62,11 +62,6 @@ openDB' label = do
 openTempFile' :: String -> IO (FilePath, Handle)
 openTempFile' label = openTempFile "test" $ mkTempFileName label ".txt"
 
--- | Handle inconsistent usage of backslashes (between show and readFile).
-show' :: Show a => a -> String
-show' = (filter (\ch -> not (ch `elem` "\\\""))) . show
-
-
 -- Test labels
 
 readFromDatabase :: String
@@ -82,6 +77,7 @@ input_readFromDatabase = newIORef [
     "(tPeople, iPeopleName) = (table \"People\" `withIndex` iPeopleName :: Table People, index tPeople \"name\" name :: Index People String)",
     ":open " ++ mkTempFileName readFromDatabase ".db",
     "select [x | x <- from tPeople everything]",
+    "it",
     ":q"
     ]
 
@@ -115,7 +111,7 @@ prop_readFromDatabase testData = ioProperty $ do
     removeFile fp
     removeFile dbFp
 
-    return $ show' res == show' ref
+    return $ res == show ref
 
 main :: IO ()
 main = do
