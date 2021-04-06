@@ -18,27 +18,37 @@ import Data.Char (isSymbol)
 
 import Frontend.Base
 import Frontend.Context
+import Frontend.Format
 import Frontend.Typecheck
 
--- | Send string to the 'less' command via the 'echo' command, making it 
--- navigable with the arrow keys.
--- If this is not possible, print normally (e.g. when run from the Windows 
--- command-line).
+-- | Send a printable value to the 'less' command via the 'echo' command, 
+--   making it navigable with the arrow keys.
+--   If this is not possible, or if the string is short, print normally 
+--   (e.g. when run from the Windows command-line).
 display :: Show a => a -> DaisonI ()
 display showable = do
+    let string = show showable
     let sendToLess = do
             (_, Just hout, _, _) <- 
-                P.createProcess(P.proc "echo" [show showable]) { P.std_out = P.CreatePipe }
+                P.createProcess(P.proc "echo" [string]) { P.std_out = P.CreatePipe }
             (_, _, _, hcmd) <- 
                 P.createProcess(P.proc "less" []) { P.std_in = P.UseHandle hout }
             P.waitForProcess hcmd
             return $ Right ()
 
-    res <- GHC.liftIO $ GHC.catch sendToLess $
-            \e -> (return . Left . show) (e :: GHC.IOException)
-    GHC.liftIO $ case res of
-        Left _ -> print showable
-        Right () -> return ()
+    if isShort string then GHC.liftIO $ print showable
+    else do
+        res <- GHC.liftIO $ GHC.catch sendToLess $
+                \e -> (return . Left . show) (e :: GHC.IOException)
+        GHC.liftIO $ case res of
+            Left _ -> print showable
+            Right () -> return ()
+
+-- | Determine if the string representation for a value is short, with
+--   respect to character count.
+isShort :: String -> Bool
+isShort str = length str < charThreshold
+    where charThreshold = 80
 
 -- | Get string representations of the results from e.g. runExpr.
 getResults :: [GHC.Name] -> DaisonI [String]

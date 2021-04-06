@@ -39,6 +39,7 @@ executable daison-frontend
   other-modules:       Frontend.Base
                        Frontend.Context
                        Frontend.Eval
+                       Frontend.Format
                        Frontend.GHCInterface
                        Frontend.Typecheck
                        Frontend.Run
@@ -77,6 +78,7 @@ library daison-frontend-internal-library
                        Frontend.Base
                        Frontend.Context
                        Frontend.Eval
+                       Frontend.Format
                        Frontend.GHCInterface
                        Frontend.Typecheck
                        Frontend.Run
