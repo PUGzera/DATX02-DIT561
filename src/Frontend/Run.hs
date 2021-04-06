@@ -122,7 +122,7 @@ setStartupExtensions = do
 cmdSet :: String -> DaisonI ()
 cmdSet input = do
     let arg = removeDoubleQuotes $ (words input) !! 1
-    case ("X" `isPrefixOf` arg) of
+    case ("-X" `isPrefixOf` arg) of
         True -> do
             case readExtension $ drop 1 arg of
                 Just ext -> do
@@ -187,9 +187,16 @@ cmdClose input = do
 cmdImport :: String -> DaisonI ()
 cmdImport input = do
     target <- liftGhc $ GHC.guessTarget (removeCmd input) Nothing
-    liftGhc $ GHC.setTargets [target]
-    res <- liftGhc $ GHC.load GHC.LoadAllTargets
-    loop
+    case GHC.targetId target of
+        (GHC.TargetFile fp _) -> do
+            cm <- liftGhc $ GHC.compileToCoreModule fp
+            let mName = GHC.moduleNameString $ GHC.moduleName $ GHC.cm_module cm
+            liftGhc $ GHC.setTargets [target]
+            res <- liftGhc $ GHC.load GHC.LoadAllTargets
+            m <- liftGhc $ GHC.findModule (GHC.mkModuleName mName) Nothing
+            addImport (makeIIDecl $ GHC.moduleName  m)
+            loop
+
 
 cmdModule :: String -> DaisonI ()
 cmdModule input = do
