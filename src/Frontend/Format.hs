@@ -31,7 +31,7 @@ formatTable result expr
     | length rows == 1 = singleRow rows 
     | otherwise        = toTable expr . postProcess $ rows
     where
-        rows = toRows result
+        rows = toRows $ resetFormat result
         singleRow row = do
             typeSig <- exprType expr
             return $ GHC.brackets 
@@ -172,9 +172,9 @@ toTable :: String -> [[String]] -> DaisonI GHC.Doc
 toTable expr processedRows = do
     let queryText = GHC.text expr
     typeSig <- mToDaison expr >>= exprType >>= removeDaison
-    
+
     let typeText = GHC.text $ "it :: " ++ typeSig
-    let header = map (dropWhile isSpace) $ getLabels typeSig
+    let header = map (dropWhile isSpace) $ getLabels $ resetFormat typeSig
 
     let indexCol = "it !!" : map show [0..length processedRows - 1]
     let rowsT = indexCol : transpose (header : processedRows)
@@ -193,6 +193,10 @@ removeDaison :: String -> DaisonI String
 removeDaison str
     | "Daison " `isPrefixOf` str = return $ drop 7 str
     | otherwise                  = return str
+
+-- | Remove newlines and excess spacing from a string.
+resetFormat :: String -> String
+resetFormat = unwords . words
 
 -- | Get the labels for the header row.
 --   Key labels have their type arguments omitted.

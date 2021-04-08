@@ -32,7 +32,7 @@ display showable = do
             (_, Just hout, _, _) <- 
                 P.createProcess(P.proc "echo" [string]) { P.std_out = P.CreatePipe }
             (_, _, _, hcmd) <- 
-                P.createProcess(P.proc "less" []) { P.std_in = P.UseHandle hout }
+                P.createProcess(P.proc "less" ["--chop-long-lines"]) { P.std_in = P.UseHandle hout }
             P.waitForProcess hcmd
             return $ Right ()
 
