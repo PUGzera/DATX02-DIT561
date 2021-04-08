@@ -40,7 +40,7 @@ data DaisonState = DaisonState {
 newtype DaisonI a = DaisonI{ exec :: DaisonState -> GHC.Ghc (a, DaisonState) }
 
 -- | Used to display errors.
-data DaisonIError = DBNotOpen | NoOpenDB
+data DaisonIError = DBNotOpen | NoOpenDB | UnknownCmd String
     deriving Typeable
 
 -- | Represents an empty state with nothing set.
@@ -89,10 +89,10 @@ instance MonadIO DaisonI where
 instance GHC.ExceptionMonad DaisonI where
     gcatch m h = DaisonI $ \st -> do
         ref <- getSessionRef
-        GHC.liftIO $ GHC.catch 
+        GHC.liftIO $ GHC.catch
             (reflectDaisonI st m ref)
             $ \e -> reflectDaisonI st (h e) ref
-    
+
     gmask f =
         DaisonI $ \st -> do
             ref <- getSessionRef
@@ -107,7 +107,8 @@ instance GHC.ExceptionMonad DaisonI where
 instance Show DaisonIError where
     show DBNotOpen = "database has not been opened"
     show NoOpenDB = "no open database found"
-    
+    show (UnknownCmd cmd) = "unknown command " ++ cmd
+
 instance E.Exception DaisonIError
 
 -- | Lift GHC functions to DaisonI.
@@ -118,7 +119,7 @@ liftGhc m = DaisonI $ \st -> do a <- m; return (a, st)
 baseModuleNames :: [GHC.ModuleName]
 baseModuleNames = map GHC.mkModuleName [
     "Prelude",
-    "Database.Daison", 
+    "Database.Daison",
     "Control.Monad.IO.Class",
     "Data.Data",
     "System.Directory"

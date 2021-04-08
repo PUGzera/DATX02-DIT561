@@ -80,7 +80,8 @@ loop = do
             | ":open "   `isPrefixOf` input -> cmdOpen input
             | ":t "      `isPrefixOf` input -> cmdType input
             | ":cd "     `isPrefixOf` input -> cmdCd input
-            | ":set "     `isPrefixOf` input -> cmdSet input
+            | ":set "    `isPrefixOf` input -> cmdSet input
+            | ":"        `isPrefixOf` input -> cmdError input
             | otherwise                     -> cmdExpr input
         `GHC.gcatch`
             handleError state
@@ -101,6 +102,10 @@ removeCmd = unwords . tail . words
 
 removeDoubleQuotes :: String -> String
 removeDoubleQuotes = filter (/= '"')
+
+cmdError :: String -> DaisonI()
+cmdError input = do
+  GHC.throw $ UnknownCmd (takeWhile (' ' /=) input)
 
 cmdQuit :: DaisonI ()
 cmdQuit = return ()
@@ -176,7 +181,7 @@ cmdClose input = do
             let newActive = case dbs' of
                     [] -> Nothing
                     _ -> Just $ head dbs'
-            runExpr $ sCloseDB arg 
+            runExpr $ sCloseDB arg
             updateSessionVariable "_openDBs" $ sRemoveDB arg
             runExpr $ "let _activeDB = " ++ sGetDB newActive
             modifyState $ \st -> st{activeDB = newActive,
@@ -210,8 +215,8 @@ runDaisonStmt stmt = do
     state <- getState
     t <- exprType stmt
     daisonStmt <- mToDaison stmt
-    let query = "it <- runDaison _activeDB " 
-                ++ show (mode state) ++ " " 
+    let query = "it <- runDaison _activeDB "
+                ++ show (mode state) ++ " "
                 ++ "$ (" ++ daisonStmt ++ ")"
     case activeDB state of
         Nothing -> GHC.throw NoOpenDB
@@ -226,7 +231,7 @@ handleError state e =
         do
             GHC.liftIO $ print (e :: GHC.SomeException)
             loop
-        `GHC.gcatch` 
+        `GHC.gcatch`
         \e -> do
             GHC.liftIO $ print (e :: GHC.AsyncException)
             return ()
@@ -237,7 +242,7 @@ updateSessionVariable :: String -> String -> DaisonI ()
 updateSessionVariable var newValue = do
     runExpr $ "let temp_" ++ var ++ " = " ++ newValue
     runExpr $ "let " ++ var ++ " = temp_" ++ var
-    return () 
+    return ()
 
 {- Functions to be used as part of runExpr arguments -}
 
