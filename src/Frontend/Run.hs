@@ -45,7 +45,8 @@ run input = do
     let state = DaisonState ReadWriteMode Nothing [] [] Nothing input d
     runGhc state $ do
         initSession
-        loop `GHC.gfinally` closeDBs
+        printText welcomeMsg
+        loop `GHC.gfinally` exit
     return ()
 
 {- Within the session:
@@ -70,6 +71,8 @@ loop = do
     case res of
         Nothing      -> cmdQuit
         Just ""      -> loop
+        Just ":?"    -> cmdPrintHelp
+        Just ":help" -> cmdPrintHelp
         Just ":dbs"  -> cmdListOpenDBs
         Just ":q"    -> cmdQuit
         Just ":quit" -> cmdQuit
@@ -86,6 +89,13 @@ loop = do
         `GHC.gcatch`
             handleError state
 
+-- | Print exit message and close databases
+exit :: DaisonI ()
+exit = do
+    printText exitMsg
+    closeDBs
+
+-- | Close the databases which are open
 closeDBs :: DaisonI ()
 closeDBs = do
     state <- getState
@@ -113,6 +123,12 @@ cmdListOpenDBs :: DaisonI ()
 cmdListOpenDBs = do
     state <- getState
     GHC.liftIO $ print $ openDBs state
+    loop
+
+-- | Prints a help text to guide the user.
+cmdPrintHelp :: DaisonI ()
+cmdPrintHelp = do
+    printText helpText
     loop
 
 setStartupExtensions :: DaisonI ()
