@@ -111,29 +111,31 @@ cmdListOpenDBs = do
     GHC.liftIO $ print $ openDBs state
     loop
 
+-- not yet tested
 setStartupExtensions :: DaisonI ()
 setStartupExtensions = do
     args <- GHC.liftIO getArgs
-    let exts = map (\e -> readExtension $ drop 2 e) (filter (\a -> "-X" `isPrefixOf` a) $ map (\i -> removeDoubleQuotes $ (words i) !! 1 )args)
-    mapM_ addExtension $ catMaybes exts
+    flags <- liftGhc $ GHC.getSessionDynFlags
+    (flags', _, _) <- GHC.liftIO $ GHC.parseDynamicFlagsCmdLine flags (map (\i -> GHC.L GHC.noSrcSpan i) args)
+    liftGhc $ GHC.setSessionDynFlags flags'
     loop
 
 -- | Set extensions
 cmdSet :: String -> DaisonI ()
 cmdSet input = do
-    let arg = removeDoubleQuotes $ (words input) !! 1
-    case ("-X" `isPrefixOf` arg) of
-        True -> do
-            case readExtension $ drop 1 arg of
-                Just ext -> do
-                    addExtension ext
-                    loop
-                Nothing -> do
-                    GHC.liftIO $ print "no extension with that name exists"
-                    loop
-        False -> do
-            GHC.liftIO $ print "not an extension name"
+    let arg = removeCmd input
+    flags <- liftGhc $ GHC.getSessionDynFlags
+    (flags', lo, ws) <- GHC.liftIO $ GHC.parseDynamicFlags flags [GHC.L GHC.noSrcSpan arg]
+    mapM_ (\(GHC.L _ s) -> GHC.liftIO $ print $ "Unknown Flag: " ++ s) lo
+    case ws of
+        [] -> do
+            liftGhc $ GHC.setSessionDynFlags flags'
             loop
+        ws -> do
+            mapM_ (\(GHC.Warn _ (GHC.L _ s)) -> GHC.liftIO $ print s) ws
+            loop
+
+
 
 -- | Updates the current directory
 cmdCd :: String -> DaisonI ()
