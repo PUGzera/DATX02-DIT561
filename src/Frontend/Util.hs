@@ -178,7 +178,6 @@ printText =
 helpText,welcomeMsg,exitMsg :: String
 helpText = 
     "Commands available from the prompt:\n" ++
-    "\n" ++
     "   <statement>         evaluate/run <statement>\n" ++
     "   :dbs                print the list of databases that are currently open\n" ++
     "   :help, :?           display this list of commands\n" ++
