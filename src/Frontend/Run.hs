@@ -42,7 +42,7 @@ run input = do
     installHandler keyboardSignal (Catch (GHC.throwTo this GHC.UserInterrupt)) Nothing
 #endif
     d <- getCurrentDirectory
-    state <- return $ DaisonState ReadWriteMode Nothing [] [] Nothing input d
+    let state = DaisonState ReadWriteMode Nothing [] [] Nothing input d
     runGhc state $ do
         initSession
         loop `GHC.gfinally` closeDBs
@@ -104,8 +104,7 @@ removeDoubleQuotes :: String -> String
 removeDoubleQuotes = filter (/= '"')
 
 cmdError :: String -> DaisonI()
-cmdError input = do
-  GHC.throw $ UnknownCmd (takeWhile (' ' /=) input)
+cmdError input = GHC.throw $ UnknownCmd (takeWhile (' ' /=) input)
 
 cmdQuit :: DaisonI ()
 cmdQuit = return ()
@@ -119,16 +118,16 @@ cmdListOpenDBs = do
 setStartupExtensions :: DaisonI ()
 setStartupExtensions = do
     args <- GHC.liftIO getArgs
-    let exts = map (\e -> readExtension $ drop 2 e) (filter (\a -> "-X" `isPrefixOf` a) $ map (\i -> removeDoubleQuotes $ (words i) !! 1 )args)
+    let exts = map (readExtension . drop 2) (filter ("-X" `isPrefixOf`) $ map (\i -> removeDoubleQuotes $ words i !! 1 ) args)
     mapM_ addExtension $ catMaybes exts
     loop
 
 
 cmdSet :: String -> DaisonI ()
 cmdSet input = do
-    let arg = removeDoubleQuotes $ (words input) !! 1
-    case ("X" `isPrefixOf` arg) of
-        True -> do
+    let arg = removeDoubleQuotes $ words input !! 1
+    if "X" `isPrefixOf` arg
+        then
             case readExtension $ drop 1 arg of
                 Just ext -> do
                     addExtension ext
@@ -136,17 +135,17 @@ cmdSet input = do
                 Nothing -> do
                     GHC.liftIO $ print "no extension with that name exists"
                     loop
-        False -> do
+        else do
             GHC.liftIO $ print "not an extension name"
             loop
 
 -- | Updates the current directory
 cmdCd :: String -> DaisonI ()
 cmdCd input = do
-    let arg = removeDoubleQuotes $ (words input) !! 1
+    let arg = removeDoubleQuotes $ words input !! 1
     cd arg
     st <- getState
-    runExpr $ "setCurrentDirectory \"" ++ (currentDirectory st) ++ "\""
+    runExpr $ "setCurrentDirectory \"" ++ currentDirectory st ++ "\""
     loop
 
 -- | Opens a database within the session and marks it as active,
