@@ -112,13 +112,21 @@ cmdListOpenDBs = do
     loop
 
 -- not yet tested
-setStartupExtensions :: DaisonI ()
-setStartupExtensions = do
+setStartupArgs :: DaisonI ()
+setStartupArgs = do
     args <- GHC.liftIO getArgs
     flags <- liftGhc $ GHC.getSessionDynFlags
-    (flags', _, _) <- GHC.liftIO $ GHC.parseDynamicFlagsCmdLine flags (map (\i -> GHC.L GHC.noSrcSpan i) args)
-    liftGhc $ GHC.setSessionDynFlags flags'
-    loop
+    (flags', lo, ws) <- GHC.liftIO $ GHC.parseDynamicFlagsCmdLine flags (map (\i -> GHC.L GHC.noSrcSpan i) args)
+    mapM_ (\(GHC.L _ s) -> GHC.liftIO $ print $ "Unknown Argument: " ++ s) lo
+    case ws of
+        [] -> do
+            liftGhc $ GHC.setSessionDynFlags flags'
+            loop
+        ws -> do
+            mapM_ (\(GHC.Warn _ (GHC.L _ s)) -> GHC.liftIO $ print s) ws
+            loop
+
+
 
 -- | Set extensions
 cmdSet :: String -> DaisonI ()
