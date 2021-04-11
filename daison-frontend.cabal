@@ -44,6 +44,7 @@ executable daison-frontend
                        Frontend.Typecheck
                        Frontend.Run
                        Frontend.Util
+                       Paths_daison_frontend
   -- other-extensions:    
   build-depends:       base >=4.12, 
                        daison >=0.1, 
@@ -83,6 +84,7 @@ library daison-frontend-internal-library
                        Frontend.Typecheck
                        Frontend.Run
                        Frontend.Util
+                       Paths_daison_frontend
   -- other-extensions:    
   build-depends:       base >=4.12, daison >=0.1, ghc >= 8.6 && < 9, ghc-paths >=0.1 && <0.2, ghc-boot >=8.6.5, process >=1.6.5.0, haskeline >=0.8.0.0, directory>= 1.3.3.0, split
   if !os(windows)
