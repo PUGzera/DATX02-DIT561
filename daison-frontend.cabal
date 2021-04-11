@@ -67,7 +67,6 @@ test-suite unit-tests
   build-depends:       daison-frontend-internal-library,
                        base >= 4.12, 
                        directory >= 1.3.3.0, 
-                       QuickCheck, 
                        HUnit
   default-language:    Haskell2010
   ghc-options:         -dynamic
