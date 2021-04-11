@@ -105,7 +105,8 @@ prop_readFromDatabase testData = ioProperty $ do
     hClose fh
 
     output <- readFile fp
-    let res = last . lines $ output
+    let outputLines = lines output
+    let res = outputLines !! (length outputLines - 2)
 
     -- Clean up
     removeFile fp
