@@ -7,6 +7,7 @@ import Frontend.Base
 import Frontend.Typecheck
 import qualified Frontend.GHCInterface as GHC
 
+import Control.Monad ((<=<))
 import Data.Char (isSpace)
 import Data.List
 
@@ -16,7 +17,6 @@ data ToRowsArgs = TRA {
     parD :: Int, -- Parenthesis depth
     dQ :: Bool, -- Character is inside double quotes
     sQ :: Bool, -- Character is inside single quotes
-    raw :: Bool, -- Flag to handle backslashes in strings (i.e. when dQ=True)
     fromI :: Int, -- Cell start index
     toI :: Int, -- Cell end index
     rows :: [[String]], -- List of rows
@@ -26,37 +26,46 @@ data ToRowsArgs = TRA {
 }
 
 -- | Format output from Daison queries to be more readable.
+--   Assumes that a GHC session has been initialized.
 formatTable :: String -> String -> DaisonI GHC.Doc
 formatTable result expr 
-    | length rows == 1 = singleRow rows 
-    | otherwise        = toTable expr . postProcess $ rows
+    | length rows == 1 = singleRow
+    | otherwise        = toTable expr rows
     where
-        rows = toRows $ resetFormat result
-        singleRow row = do
-            typeSig <- exprType expr
-            return $ GHC.brackets 
-                     . GHC.maybeParens (',' `elem` typeSig)
+        rows = postProcess . toRows $ resetFormat result
+        row = head rows
+        singleRow = do
+            typeSig <- exprType <=< mToDaison $ expr
+            return $ maybeBrackets ('[' == (head . (!! 1) . words) typeSig)
+                     . GHC.maybeParens (multipleColumns row)
                      . GHC.hcat 
                      . GHC.punctuate (GHC.text ", ")
-                     $ map GHC.text $ head rows
+                     $ map GHC.text row
+
+        maybeBrackets True = GHC.brackets
+        maybeBrackets False = id
+        multipleColumns row = length row > 1
         
         -- Remove the I64# constructor added to cells with 'Key a' values
-        postProcess ((cell:r'):rs) 
-            | "I64# " `isPrefixOf` cell = (drop 5 cell : r') : postProcess rs
+        postProcess (r:rs) = pP' r : postProcess rs
         postProcess rs = rs
+        pP' [] = []
+        pP' (cell:r')
+            | "I64# " `isPrefixOf` cell = drop 5 cell : pP' r'
+            | otherwise                 = cell : pP' r'
 
 -- | Separate a string into (at most) a two-dimensional list based on commas,
 --   taking into account brackets, parentheses and quotation marks.
 toRows :: String -> [[String]]
-toRows result = toRows' $ TRA 0 0 False False False 0 0 [] [] result result
+toRows result = toRows' $ TRA 0 0 False False 0 0 [] [] result result
     where
         toRows' :: ToRowsArgs -> [[String]]
         -- Input end
         toRows' args@TRA{str=""}
             | (not . null) (rows args) = rows args
             | otherwise                = [currentRow args]
-        -- Result start
-        toRows' args@TRA{str='[':st, sqBrD=0, dQ=False, sQ=False} 
+        -- Result start (list)
+        toRows' args@TRA{str='[':st, parD=0, sqBrD=0, dQ=False, sQ=False} 
             = toRows' args{
                 str = st,
                 fromI = toI args + 1,
@@ -70,8 +79,8 @@ toRows result = toRows' $ TRA 0 0 False False False 0 0 [] [] result result
                 toI = toI args + 1,
                 sqBrD = sqBrD args + 1
             }
-        -- Result end
-        toRows' args@TRA{str=']':st, sqBrD=1, dQ=False, sQ=False} 
+        -- Result end (list)
+        toRows' args@TRA{str=']':st, parD=0, sqBrD=1, dQ=False, sQ=False} 
             = toRows' args{
                 str = st,
                 sqBrD = sqBrD args - 1,
@@ -79,89 +88,85 @@ toRows result = toRows' $ TRA 0 0 False False False 0 0 [] [] result result
             }
         -- Nested list end
         toRows' args@TRA{str=']':st, dQ=False, sQ=False} 
-            = toRows' args{
-                str = st,
-                toI = toI args + 1,
+            = toRows' (nextChar args){
                 sqBrD = sqBrD args - 1
             }
-        -- Column value start
-        toRows' args@TRA{str='(':st, parD=0, dQ=False, sQ=False} 
-            = toRows' args{
-                str = st,
+        -- Result start (standalone tuple)
+        toRows' args@TRA{str='(':st, parD=0, sqBrD=0, dQ=False, sQ=False} 
+            = toRows' (nextChar args){
                 fromI = toI args + 1,
-                toI = toI args + 1,
+                parD = parD args + 1
+            }
+        -- Column value start (tuple in list)
+        toRows' args@TRA{str='(':st, parD=0, sqBrD=1, dQ=False, sQ=False} 
+            = toRows' (nextChar args){
+                fromI = toI args + 1,
                 parD = parD args + 1
             }
         -- Nested tuple start
         toRows' args@TRA{str='(':st, dQ=False, sQ=False} 
-            = toRows' args{
-                str = st,
-                toI = toI args + 1,
+            = toRows' (nextChar args){
                 parD = parD args + 1
             }
-        -- Column value end
-        toRows' args@TRA{str=')':st, parD=1, dQ=False, sQ=False} 
-            = toRows' args{
-                str = st,
-                toI = toI args + 1,
+        -- Result end (standalone tuple)
+        toRows' args@TRA{str=')':st, sqBrD=0, parD=1, dQ=False, sQ=False} 
+            = toRows' (nextChar args){
                 parD = parD args - 1,
-                row = row args ++ [substr (fromI args) (toI args) (str' args)]
+                row = row args ++ [substr' (fromI args) (toI args) (str' args)]
+                }
+        -- Column value end (tuple in list)
+        toRows' args@TRA{str=')':st, sqBrD=1, parD=1, dQ=False, sQ=False} 
+            = toRows' (nextChar args){
+                parD = parD args - 1,
+                row = row args ++ [substr' (fromI args) (toI args) (str' args)]
                 }
         -- Nested tuple end
         toRows' args@TRA{str=')':st, dQ=False, sQ=False} 
-            = toRows' args{
-                str = st,
-                toI = toI args + 1,
+            = toRows' (nextChar args){
                 parD = parD args - 1
                 }
         -- String start/end
-        toRows' args@TRA{str='"':st, sQ=False, raw=False} 
-            = toRows' args{
-                str = st,
-                toI = toI args + 1,
+        toRows' args@TRA{str='"':st, sQ=False}
+            = toRows' (nextChar args){
                 dQ = not $ dQ args
             }
         -- Char start/end
         toRows' args@TRA{str='\'':st, dQ=False} 
-            = toRows' args{
-                str = st,
-                toI = toI args + 1,
+            = toRows' (nextChar args){
                 sQ = not $ sQ args
-            }
-        -- Treat the next character as a raw string character
-        toRows' args@TRA{str='\\':st, sQ=False, raw=False} 
-            = toRows' args{
-                str = st,
-                toI = toI args + 1,
-                raw = True
             }
         -- Row separator
         toRows' args@TRA{str=',':st, sqBrD=1, parD=0, dQ=False, sQ=False} 
-            = toRows' args{
-                str = st,
+            = toRows' (nextChar args){
                 fromI = toI args + 1,
-                toI = toI args + 1,
                 rows = rows args ++ [currentRow args],
                 row = []
             }
-        -- Column separator
-        toRows' args@TRA{str=',':st, sqBrD=1, parD=1, dQ=False, sQ=False}
-            = toRows' args{
-                str = st,
+        -- Column separator (standalone tuple)
+        toRows' args@TRA{str=',':st, sqBrD=0, parD=1, dQ=False, sQ=False}
+            = toRows' (nextChar args){
                 fromI = toI args + 1,
-                toI = toI args + 1,
-                row = row args ++ [substr (fromI args) (toI args) (str' args)]
+                row = row args ++ [substr' (fromI args) (toI args) (str' args)]
+            }
+        -- Column separator (tuple in list)
+        toRows' args@TRA{str=',':st, sqBrD=1, parD=1, dQ=False, sQ=False}
+            = toRows' (nextChar args){
+                fromI = toI args + 1,
+                row = row args ++ [substr' (fromI args) (toI args) (str' args)]
             }
         -- Characters that do not affect formatting
         toRows' args@TRA{str=_ch:st} 
-            = toRows' args{
-                str = st,
-                toI = toI args + 1,
-                raw = False
-            }
+            = toRows' $ nextChar args
 
         currentRow args = if (not . null) (row args) then row args
                           else [substr (fromI args) (toI args) (str' args)]
+
+        nextChar args@TRA{str=_ch:st} = args{str = st, toI = toI args + 1}
+
+        substr' from to string
+            | null substring = "()"
+            | otherwise      = substring
+            where substring = substr from to string
 
 -- | Format a two-dimensional list as a table.
 --   Prepends information about the query used to generate it as well as the
