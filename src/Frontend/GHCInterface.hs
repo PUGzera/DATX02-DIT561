@@ -8,10 +8,13 @@ import GHC as X
 import GHC.Paths as X (libdir) -- maybe put this in another module since ghc-paths is a package
 import DynFlags as X
 import Outputable as X (showSDocForUser, showSDoc, ppr)
+import DynFlags as X hiding (WarnReason(..))
+import Outputable as X
 import PprTyThing as X
 import GhcMonad as X
 import GHC.LanguageExtensions as X
 import Pretty as X
+import CmdLineParser as X (Warn(..), WarnReason(..))
 
 import Exception as X
 import HscTypes as X (SourceError, tyThingId)

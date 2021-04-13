@@ -83,8 +83,9 @@ loop = do
             | ":open "   `isPrefixOf` input -> cmdOpen input
             | ":t "      `isPrefixOf` input -> cmdType input
             | ":cd "     `isPrefixOf` input -> cmdCd input
-            | ":set "    `isPrefixOf` input -> cmdSet input
             | ":"        `isPrefixOf` input -> cmdError input
+            | ":set "    `isPrefixOf` input -> cmdSet input
+            | ":m"       `isPrefixOf` input -> cmdModule input
             | otherwise                     -> cmdExpr input
         `GHC.gcatch`
             handleError state
@@ -113,9 +114,6 @@ removeCmd = unwords . tail . words
 removeDoubleQuotes :: String -> String
 removeDoubleQuotes = filter (/= '"')
 
-cmdError :: String -> DaisonI()
-cmdError input = GHC.throw $ UnknownCmd (takeWhile (' ' /=) input)
-
 cmdQuit :: DaisonI ()
 cmdQuit = return ()
 
@@ -131,29 +129,39 @@ cmdPrintHelp = do
     printText helpText
     loop
 
-setStartupExtensions :: DaisonI ()
-setStartupExtensions = do
+-- not yet tested
+setStartupArgs :: DaisonI ()
+setStartupArgs = do
     args <- GHC.liftIO getArgs
-    let exts = map (readExtension . drop 2) (filter ("-X" `isPrefixOf`) $ map (\i -> removeDoubleQuotes $ words i !! 1 ) args)
-    mapM_ addExtension $ catMaybes exts
-    loop
+    flags <- liftGhc $ GHC.getSessionDynFlags
+    (flags', lo, ws) <- GHC.liftIO $ GHC.parseDynamicFlagsCmdLine flags (map (\i -> GHC.L GHC.noSrcSpan i) args)
+    mapM_ (\(GHC.L _ s) -> GHC.liftIO $ print $ "Unknown Argument: " ++ s) lo
+    case ws of
+        [] -> do
+            liftGhc $ GHC.setSessionDynFlags flags'
+            loop
+        ws -> do
+            mapM_ (\(GHC.Warn _ (GHC.L _ s)) -> GHC.liftIO $ print s) ws
+            loop
 
 
+
+-- | Set extensions
 cmdSet :: String -> DaisonI ()
 cmdSet input = do
-    let arg = removeDoubleQuotes $ words input !! 1
-    if "X" `isPrefixOf` arg
-        then
-            case readExtension $ drop 1 arg of
-                Just ext -> do
-                    addExtension ext
-                    loop
-                Nothing -> do
-                    GHC.liftIO $ print "no extension with that name exists"
-                    loop
-        else do
-            GHC.liftIO $ print "not an extension name"
+    let arg = removeCmd input
+    flags <- liftGhc $ GHC.getSessionDynFlags
+    (flags', lo, ws) <- GHC.liftIO $ GHC.parseDynamicFlags flags [GHC.L GHC.noSrcSpan arg]
+    mapM_ (\(GHC.L _ s) -> GHC.liftIO $ print $ "Unknown Flag: " ++ s) lo
+    case ws of
+        [] -> do
+            liftGhc $ GHC.setSessionDynFlags flags'
             loop
+        ws -> do
+            mapM_ (\(GHC.Warn _ (GHC.L _ s)) -> GHC.liftIO $ print s) ws
+            loop
+
+
 
 -- | Updates the current directory
 cmdCd :: String -> DaisonI ()
@@ -206,6 +214,20 @@ cmdClose input = do
 
 cmdImport :: String -> DaisonI ()
 cmdImport input = do
+    target <- liftGhc $ GHC.guessTarget (removeCmd input) Nothing
+    case GHC.targetId target of
+        (GHC.TargetFile fp _) -> do
+            cm <- liftGhc $ GHC.compileToCoreModule fp
+            let mName = GHC.moduleNameString $ GHC.moduleName $ GHC.cm_module cm
+            liftGhc $ GHC.setTargets [target]
+            res <- liftGhc $ GHC.load GHC.LoadAllTargets
+            m <- liftGhc $ GHC.findModule (GHC.mkModuleName mName) Nothing
+            addImport (makeIIDecl $ GHC.moduleName  m)
+            loop
+
+
+cmdModule :: String -> DaisonI ()
+cmdModule input = do
     addImport $ makeIIDecl $ GHC.mkModuleName $ removeCmd input
     loop
 
