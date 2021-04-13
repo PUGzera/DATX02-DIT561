@@ -193,8 +193,9 @@ helpText =
     "\n" ++
     "-- Commands for utility:\n" ++
     "   :cd <dir>           set the current directory\n" ++
-    "   :import <module>    import <module> if it exists\n" ++
-    "   :set <option>       set <option> if it exists\n"
+    "   :m <module>         import <module>\n" ++
+    "   :l <filepath>       load a haskell file from <filepath>\n" ++
+    "   :set <option>       set <option>\n"
 
 welcomeMsg = "Daison-Frontend, version " ++ 
                 showVersion version ++
