@@ -17,6 +17,8 @@ data ToRowsArgs = TRA {
     parD :: Int, -- Parenthesis depth
     dQ :: Bool, -- Character is inside double quotes
     sQ :: Bool, -- Character is inside single quotes
+    cStart :: Bool, -- Cell start
+    cTuple :: Bool, -- Cell contents started with a parenthesis
     fromI :: Int, -- Cell start index
     toI :: Int, -- Cell end index
     rows :: [[String]], -- List of rows
@@ -57,7 +59,7 @@ formatTable result expr
 -- | Separate a string into (at most) a two-dimensional list based on commas,
 --   taking into account brackets, parentheses and quotation marks.
 toRows :: String -> [[String]]
-toRows result = toRows' $ TRA 0 0 False False 0 0 [] [] result result
+toRows result = toRows' $ TRA 0 0 False False True False 0 0 [] [] result result
     where
         toRows' :: ToRowsArgs -> [[String]]
         -- Input end
@@ -66,23 +68,19 @@ toRows result = toRows' $ TRA 0 0 False False 0 0 [] [] result result
             | otherwise                = [currentRow args]
         -- Result start (list)
         toRows' args@TRA{str='[':st, parD=0, sqBrD=0, dQ=False, sQ=False} 
-            = toRows' args{
-                str = st,
+            = toRows' (nextChar args){
+                cStart = True,
                 fromI = toI args + 1,
-                toI = toI args + 1,
                 sqBrD = sqBrD args + 1
             }
         -- Nested list start
         toRows' args@TRA{str='[':st, dQ=False, sQ=False} 
-            = toRows' args{
-                str = st,
-                toI = toI args + 1,
+            = toRows' (nextChar args){
                 sqBrD = sqBrD args + 1
             }
         -- Result end (list)
         toRows' args@TRA{str=']':st, parD=0, sqBrD=1, dQ=False, sQ=False} 
-            = toRows' args{
-                str = st,
+            = toRows' (nextChar args){
                 sqBrD = sqBrD args - 1,
                 rows = rows args ++ [currentRow args]
             }
@@ -92,14 +90,16 @@ toRows result = toRows' $ TRA 0 0 False False 0 0 [] [] result result
                 sqBrD = sqBrD args - 1
             }
         -- Result start (standalone tuple)
-        toRows' args@TRA{str='(':st, parD=0, sqBrD=0, dQ=False, sQ=False} 
+        toRows' args@TRA{str='(':st, cStart=True, parD=0, sqBrD=0, dQ=False, sQ=False} 
             = toRows' (nextChar args){
+                cTuple = True,
                 fromI = toI args + 1,
                 parD = parD args + 1
             }
         -- Column value start (tuple in list)
-        toRows' args@TRA{str='(':st, parD=0, sqBrD=1, dQ=False, sQ=False} 
+        toRows' args@TRA{str='(':st, cStart=True, parD=0, sqBrD=1, dQ=False, sQ=False} 
             = toRows' (nextChar args){
+                cTuple = True,
                 fromI = toI args + 1,
                 parD = parD args + 1
             }
@@ -109,14 +109,16 @@ toRows result = toRows' $ TRA 0 0 False False 0 0 [] [] result result
                 parD = parD args + 1
             }
         -- Result end (standalone tuple)
-        toRows' args@TRA{str=')':st, sqBrD=0, parD=1, dQ=False, sQ=False} 
+        toRows' args@TRA{str=')':st, cTuple=True, sqBrD=0, parD=1, dQ=False, sQ=False} 
             = toRows' (nextChar args){
+                cTuple = False,
                 parD = parD args - 1,
                 row = row args ++ [substr' (fromI args) (toI args) (str' args)]
                 }
         -- Column value end (tuple in list)
-        toRows' args@TRA{str=')':st, sqBrD=1, parD=1, dQ=False, sQ=False} 
+        toRows' args@TRA{str=')':st, cTuple=True, sqBrD=1, parD=1, dQ=False, sQ=False} 
             = toRows' (nextChar args){
+                cTuple = False,
                 parD = parD args - 1,
                 row = row args ++ [substr' (fromI args) (toI args) (str' args)]
                 }
@@ -136,23 +138,32 @@ toRows result = toRows' $ TRA 0 0 False False 0 0 [] [] result result
                 sQ = not $ sQ args
             }
         -- Row separator
-        toRows' args@TRA{str=',':st, sqBrD=1, parD=0, dQ=False, sQ=False} 
+        toRows' args@TRA{str=',':st, cTuple=False, sqBrD=1, parD=0, dQ=False, sQ=False} 
             = toRows' (nextChar args){
+                cStart = True,
                 fromI = toI args + 1,
                 rows = rows args ++ [currentRow args],
                 row = []
             }
         -- Column separator (standalone tuple)
-        toRows' args@TRA{str=',':st, sqBrD=0, parD=1, dQ=False, sQ=False}
+        toRows' args@TRA{str=',':st, cTuple=True, sqBrD=0, parD=1, dQ=False, sQ=False}
             = toRows' (nextChar args){
+                cStart = True,
                 fromI = toI args + 1,
                 row = row args ++ [substr' (fromI args) (toI args) (str' args)]
             }
         -- Column separator (tuple in list)
-        toRows' args@TRA{str=',':st, sqBrD=1, parD=1, dQ=False, sQ=False}
+        toRows' args@TRA{str=',':st, cTuple=True, sqBrD=1, parD=1, dQ=False, sQ=False}
             = toRows' (nextChar args){
+                cStart = True,
                 fromI = toI args + 1,
                 row = row args ++ [substr' (fromI args) (toI args) (str' args)]
+            }
+        -- Leading whitespace
+        toRows' args@TRA{str=' ':st, cStart=True}
+            = toRows' (nextChar args){
+                cStart = True,
+                fromI = fromI args + 1
             }
         -- Characters that do not affect formatting
         toRows' args@TRA{str=_ch:st} 
@@ -161,7 +172,11 @@ toRows result = toRows' $ TRA 0 0 False False 0 0 [] [] result result
         currentRow args = if (not . null) (row args) then row args
                           else [substr (fromI args) (toI args) (str' args)]
 
-        nextChar args@TRA{str=_ch:st} = args{str = st, toI = toI args + 1}
+        nextChar args@TRA{str=_ch:st} = args{
+            str = st, 
+            toI = toI args + 1,
+            cStart = False
+            }
 
         substr' from to string
             | null substring = "()"
