@@ -46,7 +46,7 @@ run input = do
     runGhc state $ do
         initSession
         printText welcomeMsg
-        loop `GHC.gfinally` exit
+        setStartupArgs `GHC.gfinally` exit
     return ()
 
 {- Within the session:
@@ -145,7 +145,7 @@ cmdPrintHelp = do
     printText helpText
     loop
 
--- not yet tested
+-- | Set extensions on startup
 setStartupArgs :: DaisonI ()
 setStartupArgs = do
     args <- GHC.liftIO getArgs
