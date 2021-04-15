@@ -28,10 +28,6 @@ import Control.Concurrent (myThreadId)
 import System.Posix.Signals
 #endif
 
-instance Show AccessMode where
-    show ReadWriteMode = "ReadWriteMode"
-    show ReadOnlyMode = "ReadOnlyMode"
-
 -- | Start a session with initial values and then wait for user input.
 run :: (String -> IO (Maybe String)) -> IO ()
 run input = do
@@ -262,25 +258,6 @@ cmdExpr expr = do
     isQuery <- exprIsQuery expr
     if isQuery then runDaisonStmt expr else runExpr expr
     loop
-
--- | Perform a Daison transaction.
---   Throws an exception if no database has been opened.
---   Displays the result in a navigable format if it is not short.
-runDaisonStmt :: String -> DaisonI [GHC.Name]
-runDaisonStmt stmt = do
-    state <- getState
-    t <- exprType stmt
-    daisonStmt <- mToDaison stmt
-    let query = "it <- runDaison _activeDB "
-                ++ show (mode state) ++ " "
-                ++ "$ (" ++ daisonStmt ++ ")"
-    case activeDB state of
-        Nothing -> GHC.throw NoOpenDB
-        Just _  -> do
-            out <- runExpr query
-            res <- getResults out
-            formatTable (head res) stmt >>= display
-            return out
 
 handleError :: DaisonState -> GHC.SomeException -> DaisonI ()
 handleError state e =
