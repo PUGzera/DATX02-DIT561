@@ -17,22 +17,22 @@ import qualified Frontend.GHCInterface as GHC
 
 import Database.Daison
 
+import qualified Control.Exception as E
 import Control.Monad (liftM)
 import Control.Monad.IO.Class
-import Data.IORef
-import Data.Typeable
+import Data.IORef (IORef, newIORef)
+import Data.Typeable (Typeable)
 
-import qualified Control.Exception as E
 
 -- | Represents the active state of the program.
 data DaisonState = DaisonState {
-    mode :: AccessMode, -- ^ The set mode to access the database. Read/Write/ReadWrite
+    mode :: AccessMode, -- ^ The set mode to access the database. ReadWriteMode/ReadOnlyMode
     activeDB :: Maybe String, -- ^ The set active database. Queries will run to a database with this name if set.
     openDBs :: [String], -- ^ A list of all databases that are currently open
     modules :: [GHC.InteractiveImport], -- ^ List of imported modules
     flags :: Maybe GHC.DynFlags, -- ^ Extra flags which GHC commands are run with
-    input :: String -> IO (Maybe String), -- Latest input from the user
-    currentDirectory :: String
+    input :: String -> IO (Maybe String), -- ^ Latest input from the user
+    currentDirectory :: String -- ^ Current working directory
 }
 
 -- | Acts as a state transformer for 'DaisonState'.
@@ -110,6 +110,10 @@ instance Show DaisonIError where
     show (UnknownCmd cmd) = "unknown command " ++ cmd
 
 instance E.Exception DaisonIError
+
+instance Show AccessMode where
+    show ReadWriteMode = "ReadWriteMode"
+    show ReadOnlyMode = "ReadOnlyMode"
 
 -- | Lift GHC functions to DaisonI.
 liftGhc :: GHC.Ghc a -> DaisonI a

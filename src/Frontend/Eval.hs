@@ -11,21 +11,13 @@ module Frontend.Eval (
 ) where
 
 import qualified Frontend.GHCInterface as GHC
-
-import qualified System.Process as P
-
-import Prelude
-import Data.Char (isSymbol)
-import Database.Daison (AccessMode(..))
-
 import Frontend.Base
-import Frontend.Context
 import Frontend.Format
 import Frontend.Typecheck
 
-instance Show AccessMode where
-    show ReadWriteMode = "ReadWriteMode"
-    show ReadOnlyMode = "ReadOnlyMode"
+import qualified System.Process as P
+
+import Data.Char (isSymbol)
 
 -- | Send a printable value to the 'less' command via the 'echo' command, 
 --   making it navigable with the arrow keys.

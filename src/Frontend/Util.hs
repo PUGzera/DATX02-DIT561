@@ -7,21 +7,15 @@ module Frontend.Util (
     exitMsg
 ) where
 
+import qualified Frontend.GHCInterface as GHC
 import Frontend.Base
 
-import qualified Frontend.GHCInterface as GHC
+import System.Directory (doesDirectoryExist)
 
-import System.Environment
-
-import System.Directory
-
-import Data.List.Split
-
-import Data.List
-
-
-import Paths_daison_frontend (version)
+import Data.List.Split (splitOn)
+import Data.List (intercalate)
 import Data.Version (showVersion)
+import Paths_daison_frontend (version)
 
 winToUnix :: String -> String
 winToUnix s = intercalate "/" (splitOn "\\" s)

@@ -3,9 +3,9 @@ module Frontend.Format (
   formatTable
 ) where
 
-import Frontend.Base
-import Frontend.Typecheck
 import qualified Frontend.GHCInterface as GHC
+import Frontend.Base (DaisonI)
+import Frontend.Typecheck
 
 import Control.Monad ((<=<))
 import Data.Char (isSpace)

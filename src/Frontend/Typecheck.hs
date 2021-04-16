@@ -12,8 +12,7 @@ import Frontend.Context
 
 import System.IO (Handle)
 
-import Database.Daison (AccessMode(..))
-import Data.List
+import Data.List (isPrefixOf)
 
 -- | Find the GHC evaluated expression type.
 exprType :: String -> DaisonI String

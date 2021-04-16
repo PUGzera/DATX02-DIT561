@@ -5,24 +5,19 @@ module Frontend.Run (
   run, initSession
 ) where
 
+import qualified Frontend.GHCInterface as GHC
 import Frontend.Base
 import Frontend.Context
 import Frontend.Eval
-import Frontend.Format
 import Frontend.Typecheck
 import Frontend.Util
-import qualified Frontend.GHCInterface as GHC
 
-import System.Environment
+import System.Environment (getArgs)
+import System.Directory (getCurrentDirectory)
 
-import System.Directory
-
-import Database.Daison
-
-import Data.Maybe
-
-import Data.List
 import Control.Concurrent (myThreadId)
+import Data.Maybe (fromMaybe)
+import Data.List (isPrefixOf)
 
 #if !defined(mingw32_HOST_OS) && !defined(TEST)
 import System.Posix.Signals
@@ -38,7 +33,7 @@ run input = do
     installHandler keyboardSignal (Catch (GHC.throwTo this GHC.UserInterrupt)) Nothing
 #endif
     d <- getCurrentDirectory
-    let state = DaisonState ReadWriteMode Nothing [] [] Nothing input d
+    let state = emptyState{input=input, currentDirectory=d}
     runGhc state $ do
         initSession
         printText welcomeMsg
@@ -156,8 +151,6 @@ setStartupArgs = do
             mapM_ (\(GHC.Warn _ (GHC.L _ s)) -> GHC.liftIO $ print s) ws
             loop
 
-
-
 -- | Set extensions
 cmdSet :: String -> DaisonI ()
 cmdSet input = do
@@ -172,8 +165,6 @@ cmdSet input = do
         ws -> do
             mapM_ (\(GHC.Warn _ (GHC.L _ s)) -> GHC.liftIO $ print s) ws
             loop
-
-
 
 -- | Updates the current directory
 cmdCd :: String -> DaisonI ()
@@ -239,7 +230,6 @@ cmdImport input = do
             runExpr sDefineOpenDBs
             reopenDBs
             loop
-
 
 cmdModule :: String -> DaisonI ()
 cmdModule input = do

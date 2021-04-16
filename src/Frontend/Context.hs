@@ -9,12 +9,7 @@ module Frontend.Context (
 ) where
 
 import qualified Frontend.GHCInterface as GHC
-
-import Exception
-
 import Frontend.Base
-
-import qualified Control.Exception as E
 
 -- | Add a list of modules to the current context.
 loadModules :: [GHC.InteractiveImport] -> DaisonI ()
