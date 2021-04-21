@@ -217,7 +217,9 @@ cmdClose input = do
 
 cmdImport :: String -> DaisonI ()
 cmdImport input = do
-    target <- liftGhc $ GHC.guessTarget (removeCmd input) Nothing
+    state <- getState
+    let cdir = currentDirectory state
+    target <- liftGhc $ GHC.guessTarget (cdir ++ "/" ++ (removeCmd input)) Nothing
     case GHC.targetId target of
         (GHC.TargetFile fp _) -> do
             closeDBs
