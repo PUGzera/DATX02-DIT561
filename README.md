@@ -17,6 +17,7 @@ The purpose of the project is to study how the compiler GHC can be used as a lib
     - [`Base.hs`](src/Frontend/Base.hs) - Session/State handling
     - [`Context.hs`](src/Frontend/Context.hs) - Extensions/Flag handling
     - [`Eval.hs`](src/Frontend/Eval.hs) - Evaluate expressions sent through the CLI
+    - [`Format.hs`](src/Frontend/Format.hs) - Format output from Daison queries
     - [`GHCInterface.hs`](src/Frontend/GHCInterface.hs) - No own implementations here, purely for imports.
     - [`Run.hs`](src/Frontend/Run.hs) - Loop of the program and definitions of commands that can be run
     - [`Typecheck.hs`](src/Frontend/Typecheck.hs) - Typecheck user input to decide how to handle it.
@@ -39,6 +40,20 @@ We used Cabal to automate dependency installations, building as well as testing 
 
 ## Example usage
 *Todo*
+### Available commands
+| Command             | Description                                                            |
+| ------------------- | ---------------------------------------------------------------------- |
+| `<statement>`       | evaluate/run `<statement>`                                             |
+| :dbs                | print the list of databases that are currently open                    |
+| :?, :help           | display this list of commands                                          |
+| :t `<expr>`         | show the type of `<expr>`                                              |
+| :q, :quit           | quit the program                                                       |
+| :close `<name>`     | close database with `<name>` if opened                                 |
+| :db, :open `<name>` | open database with `<name>` or set focus to `<name>` if already opened |
+| :cd `<dir>`         | set the current directory to `<dir>` (relative to current location)    |
+| :m `<module>`       | import `<module>` if it exists and is in scope                         |
+| :l `<filepath>`     | load a haskell file from `<filepath>`                                  |
+| :set `<option>`     | set `<option>`                                                         |
 ## Authors
 
 | Name                      | GitHub-handle                                     |

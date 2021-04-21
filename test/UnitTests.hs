@@ -2,7 +2,6 @@
 -- | Unit testing for specific functions.
 module Main (main) where
 
-import Test.QuickCheck
 import Test.HUnit ((@?=), (@?), assertFailure, assertEqual, assertBool)
 import qualified Test.HUnit as HUnit
 

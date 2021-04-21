@@ -17,34 +17,35 @@ import qualified Frontend.GHCInterface as GHC
 
 import Database.Daison
 
+import qualified Control.Exception as E
 import Control.Monad (liftM)
 import Control.Monad.IO.Class
-import Data.IORef
-import Data.Typeable
+import Data.IORef (IORef, newIORef)
+import Data.Typeable (Typeable)
 
-import qualified Control.Exception as E
 
 -- | Represents the active state of the program.
 data DaisonState = DaisonState {
-    mode :: AccessMode, -- ^ The set mode to access the database. Read/Write/ReadWrite
+    mode :: AccessMode, -- ^ The set mode to access the database. ReadWriteMode/ReadOnlyMode
     activeDB :: Maybe String, -- ^ The set active database. Queries will run to a database with this name if set.
     openDBs :: [String], -- ^ A list of all databases that are currently open
     modules :: [GHC.InteractiveImport], -- ^ List of imported modules
     flags :: Maybe GHC.DynFlags, -- ^ Extra flags which GHC commands are run with
-    input :: String -> IO (Maybe String) -- Latest input from the user
+    input :: String -> IO (Maybe String), -- ^ Latest input from the user
+    currentDirectory :: String -- ^ Current working directory
 }
 
 -- | Acts as a state transformer for 'DaisonState'.
 -- Replicates a mutable state.
-data DaisonI a = DaisonI { exec :: DaisonState -> GHC.Ghc (a, DaisonState) }
+newtype DaisonI a = DaisonI{ exec :: DaisonState -> GHC.Ghc (a, DaisonState) }
 
 -- | Used to display errors.
-data DaisonIError = DBNotOpen | NoOpenDB
+data DaisonIError = DBNotOpen | NoOpenDB | UnknownCmd String
     deriving Typeable
 
 -- | Represents an empty state with nothing set.
 emptyState :: DaisonState
-emptyState = DaisonState ReadWriteMode Nothing [] [] Nothing (\_ -> return Nothing)
+emptyState = DaisonState ReadWriteMode Nothing [] [] Nothing (\_ -> return Nothing) "" -- may need to get actual current directory
 
 -- | Returns the current state in the `DaisonI` monad.
 getState :: DaisonI DaisonState
@@ -67,8 +68,8 @@ modifyFlags dflags = do
 instance Monad DaisonI where
     return x  = DaisonI $ \st -> return (x, st)
     (>>=) x f = DaisonI $ \st -> do
-        (v, st') <- (exec x) st
-        (exec (f v)) st'
+        (v, st') <- exec x st
+        exec (f v) st'
 
 instance Applicative DaisonI where
     pure  = return
@@ -88,11 +89,11 @@ instance MonadIO DaisonI where
 instance GHC.ExceptionMonad DaisonI where
     gcatch m h = DaisonI $ \st -> do
         ref <- getSessionRef
-        GHC.liftIO $ GHC.catch 
+        GHC.liftIO $ GHC.catch
             (reflectDaisonI st m ref)
             $ \e -> reflectDaisonI st (h e) ref
-    
-    gmask f = do
+
+    gmask f =
         DaisonI $ \st -> do
             ref <- getSessionRef
             GHC.liftIO $ GHC.gmask $ \io_restore ->
@@ -106,8 +107,13 @@ instance GHC.ExceptionMonad DaisonI where
 instance Show DaisonIError where
     show DBNotOpen = "database has not been opened"
     show NoOpenDB = "no open database found"
-    
+    show (UnknownCmd cmd) = "unknown command " ++ cmd
+
 instance E.Exception DaisonIError
+
+instance Show AccessMode where
+    show ReadWriteMode = "ReadWriteMode"
+    show ReadOnlyMode = "ReadOnlyMode"
 
 -- | Lift GHC functions to DaisonI.
 liftGhc :: GHC.Ghc a -> DaisonI a
@@ -117,9 +123,10 @@ liftGhc m = DaisonI $ \st -> do a <- m; return (a, st)
 baseModuleNames :: [GHC.ModuleName]
 baseModuleNames = map GHC.mkModuleName [
     "Prelude",
-    "Database.Daison", 
+    "Database.Daison",
     "Control.Monad.IO.Class",
-    "Data.Data"
+    "Data.Data",
+    "System.Directory"
     ]
 
 -- | List of GHC extensions which are imported on startup.
@@ -131,7 +138,7 @@ baseExtensions = [
 
 -- | Run GHC functions in DaisonI.
 runGhc :: DaisonState -> DaisonI a -> IO (a, DaisonState)
-runGhc state ds = GHC.runGhc (Just GHC.libdir) ((exec ds) state)
+runGhc state ds = GHC.runGhc (Just GHC.libdir) (exec ds state)
 
 getSessionRef :: GHC.Ghc (IORef GHC.HscEnv)
 getSessionRef = do
@@ -139,5 +146,4 @@ getSessionRef = do
     GHC.liftIO $ newIORef session
 
 reflectDaisonI :: DaisonState -> DaisonI a -> IORef GHC.HscEnv -> IO (a, DaisonState)
-reflectDaisonI state ds ref = do
-    GHC.reflectGhc ((exec ds) state) $ GHC.Session ref
+reflectDaisonI state ds ref = GHC.reflectGhc (exec ds state) $ GHC.Session ref

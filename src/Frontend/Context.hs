@@ -9,12 +9,7 @@ module Frontend.Context (
 ) where
 
 import qualified Frontend.GHCInterface as GHC
-
-import Exception
-
 import Frontend.Base
-
-import qualified Control.Exception as E
 
 -- | Add a list of modules to the current context.
 loadModules :: [GHC.InteractiveImport] -> DaisonI ()
@@ -39,7 +34,7 @@ addImport' mod =
 -- | Add a 'GHC.InteractiveImport' to the session.
 addImport :: GHC.InteractiveImport -> DaisonI ()
 addImport im = do
-    modifyState $ \st -> st { modules = im:(modules st) }
+    modifyState $ \st -> st { modules = im : modules st }
     st <- getState
     liftGhc $ GHC.setContext (modules st)
 

@@ -12,8 +12,7 @@ import Frontend.Context
 
 import System.IO (Handle)
 
-import Database.Daison (AccessMode(..))
-import Data.List
+import Data.List (isPrefixOf)
 
 -- | Find the GHC evaluated expression type.
 exprType :: String -> DaisonI String
@@ -36,7 +35,7 @@ exprIsQuery expr = do
     where
         ignoredError = "_ IgnoredError"
         errorHandler :: GHC.SourceError -> DaisonI String
-        errorHandler e = do
+        errorHandler e = 
             case Just e >>= isAssignmentError >>= possibleDeclaration of
                 Nothing -> return ignoredError
                 Just e  -> GHC.liftIO $ GHC.throwIO e
@@ -86,7 +85,7 @@ mToDaison stmt = do
 --   =>   "m [(Key (String, Int), (String, Int))]"
 removeTypeConstraint :: String -> String
 removeTypeConstraint str
-    | "=>" `elem` (words str) = drop 2 $ dropWhile (\ch -> ch /= '>') str
+    | "=>" `elem` words str = drop 2 $ dropWhile (/= '>') str
     | otherwise               = str
 
 -- Currently not used

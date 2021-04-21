@@ -5,40 +5,48 @@ module Frontend.Eval (
   getResults,
   runExpr,
   runExpr',
+  runDaisonStmt,
   runDecl',
   runStmt'
 ) where
 
 import qualified Frontend.GHCInterface as GHC
+import Frontend.Base
+import Frontend.Format
+import Frontend.Typecheck
 
 import qualified System.Process as P
 
-import Prelude
 import Data.Char (isSymbol)
 
-import Frontend.Base
-import Frontend.Context
-import Frontend.Typecheck
-
--- | Send string to the 'less' command via the 'echo' command, making it 
--- navigable with the arrow keys.
--- If this is not possible, print normally (e.g. when run from the Windows 
--- command-line).
+-- | Send a printable value to the 'less' command via the 'echo' command, 
+--   making it navigable with the arrow keys.
+--   If this is not possible, or if the string is short, print normally 
+--   (e.g. when run from the Windows command-line).
 display :: Show a => a -> DaisonI ()
 display showable = do
+    let string = show showable
     let sendToLess = do
             (_, Just hout, _, _) <- 
-                P.createProcess(P.proc "echo" [show showable]) { P.std_out = P.CreatePipe }
+                P.createProcess(P.proc "echo" [string]) { P.std_out = P.CreatePipe }
             (_, _, _, hcmd) <- 
-                P.createProcess(P.proc "less" []) { P.std_in = P.UseHandle hout }
+                P.createProcess(P.proc "less" ["--chop-long-lines"]) { P.std_in = P.UseHandle hout }
             P.waitForProcess hcmd
             return $ Right ()
 
-    res <- GHC.liftIO $ GHC.catch sendToLess $
-            \e -> (return . Left . show) (e :: GHC.IOException)
-    GHC.liftIO $ case res of
-        Left _ -> putStrLn . show $ showable
-        Right () -> return ()
+    if isShort string then GHC.liftIO $ print showable
+    else do
+        res <- GHC.liftIO $ GHC.catch sendToLess $
+                \e -> (return . Left . show) (e :: GHC.IOException)
+        GHC.liftIO $ case res of
+            Left _ -> print showable
+            Right () -> return ()
+
+-- | Determine if the string representation for a value is short, with
+--   respect to character count.
+isShort :: String -> Bool
+isShort str = length str < charThreshold
+    where charThreshold = 80
 
 -- | Get string representations of the results from e.g. runExpr.
 getResults :: [GHC.Name] -> DaisonI [String]
@@ -71,6 +79,25 @@ runExpr expr = do
         Just "Declaration" -> runDecl expr
         _                  -> return []
 
+-- | Perform a Daison transaction.
+--   Throws an exception if no database has been opened.
+--   Displays the result in a navigable format if it is not short.
+runDaisonStmt :: String -> DaisonI [GHC.Name]
+runDaisonStmt stmt = do
+    state <- getState
+    t <- exprType stmt
+    daisonStmt <- mToDaison stmt
+    let query = "it <- runDaison _activeDB "
+                ++ show (mode state) ++ " "
+                ++ "$ (" ++ daisonStmt ++ ")"
+    case activeDB state of
+        Nothing -> GHC.throw NoOpenDB
+        Just _  -> do
+            out <- runExpr query
+            res <- getResults out
+            formatTable (head res) stmt >>= display
+            return out
+
 -- | Run a declaration in the DaisonI monad and return string
 --   representations of the result.
 runDecl' :: String -> DaisonI [String]
@@ -81,9 +108,10 @@ runDecl' = runRetStr runDecl
 --   form "x = y" need to be converted to the statement 'let x = y' in order
 --   to function as intended.
 runDecl :: String -> DaisonI [GHC.Name]
-runDecl expr = case isVariableAssignment expr of
-        True -> runStmt $ "let " ++ expr
-        False -> (liftGhc . GHC.runDecls) expr
+runDecl expr = 
+    if isVariableAssignment expr
+        then runStmt $ "let " ++ expr
+        else (liftGhc . GHC.runDecls) expr
 
 -- | Check if a string assigns a value to one or more variables.
 --   Returns True if this is the case.
@@ -93,7 +121,7 @@ isVariableAssignment expr = containsAssignmentOperator expr && noDeclKeywords ex
 -- | Check if a string contains the assignment operator "=".
 --   Returns True when an equals sign occurs without any symbols surrounding it.
 containsAssignmentOperator :: String -> Bool
-containsAssignmentOperator expr = cAO' "aaa" expr
+containsAssignmentOperator = cAO' "aaa"
     where
         cAO' str@(a:'=':c:"") ""
             | noSurroundingSymbols str = True
@@ -103,14 +131,14 @@ containsAssignmentOperator expr = cAO' "aaa" expr
             | otherwise                = cAO' (newStr str expr') (newExpr expr')
         cAO' str expr' = cAO' (newStr str expr') (newExpr expr')
 
-        noSurroundingSymbols (a:b:c:"") = (not . all id . map isSymbol) $ a:c:""
+        noSurroundingSymbols (a:b:c:"") = (not . all isSymbol) $ a:c:""
         newStr str expr' = tail str ++ [head expr']
-        newExpr expr' = tail expr'
+        newExpr = tail
 
 -- | Returns True if the string does not start with a declaration keyword.
 --   Ignores leading whitespace.
 noDeclKeywords :: String -> Bool
-noDeclKeywords expr = not $ (head (words expr)) `elem` declKeywords
+noDeclKeywords expr = head (words expr) `notElem` declKeywords
 
 -- | Contains the keywords that make up declarations other than the
 --   `x = y` declaration, according to the GHCI user guide.
@@ -133,6 +161,6 @@ runStmt stmt = do
 
 -- | Return string representations of the result instead of GHC.Names.
 runRetStr :: (String -> DaisonI [GHC.Name]) -> (String -> DaisonI [String])
-runRetStr runF = \expr -> do
+runRetStr runF expr = do
     names <- runF expr
     getResults names
