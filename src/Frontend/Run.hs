@@ -5,32 +5,23 @@ module Frontend.Run (
   run, initSession
 ) where
 
+import qualified Frontend.GHCInterface as GHC
 import Frontend.Base
 import Frontend.Context
 import Frontend.Eval
-import Frontend.Format
 import Frontend.Typecheck
 import Frontend.Util
-import qualified Frontend.GHCInterface as GHC
 
-import System.Environment
+import System.Environment (getArgs)
+import System.Directory (getCurrentDirectory)
 
-import System.Directory
-
-import Database.Daison
-
-import Data.Maybe
-
-import Data.List
 import Control.Concurrent (myThreadId)
+import Data.Maybe (fromMaybe)
+import Data.List (isPrefixOf)
 
 #if !defined(mingw32_HOST_OS) && !defined(TEST)
 import System.Posix.Signals
 #endif
-
-instance Show AccessMode where
-    show ReadWriteMode = "ReadWriteMode"
-    show ReadOnlyMode = "ReadOnlyMode"
 
 -- | Start a session with initial values and then wait for user input.
 run :: (String -> IO (Maybe String)) -> IO ()
@@ -42,11 +33,11 @@ run input = do
     installHandler keyboardSignal (Catch (GHC.throwTo this GHC.UserInterrupt)) Nothing
 #endif
     d <- getCurrentDirectory
-    let state = DaisonState ReadWriteMode Nothing [] [] Nothing input d
+    let state = emptyState{input=input, currentDirectory=d}
     runGhc state $ do
         initSession
         printText welcomeMsg
-        loop `GHC.gfinally` exit
+        setStartupArgs `GHC.gfinally` exit
     return ()
 
 {- Within the session:
@@ -60,7 +51,7 @@ initSession = do
     liftGhc $ GHC.setSessionDynFlags dflags
     mapM_ (addImport . makeIIDecl) baseModuleNames
     mapM_ addExtension baseExtensions
-    runExpr "let _openDBs = [] :: [(String, Database)]"
+    runExpr sDefineOpenDBs
     return ()
 
 loop :: DaisonI ()
@@ -79,13 +70,13 @@ loop = do
         Just input
             | ":close "  `isPrefixOf` input -> cmdClose input
             | ":db "     `isPrefixOf` input -> cmdOpen input
-            | ":import " `isPrefixOf` input -> cmdImport input
+            | ":l "      `isPrefixOf` input -> cmdImport input
             | ":open "   `isPrefixOf` input -> cmdOpen input
             | ":t "      `isPrefixOf` input -> cmdType input
             | ":cd "     `isPrefixOf` input -> cmdCd input
-            | ":"        `isPrefixOf` input -> cmdError input
             | ":set "    `isPrefixOf` input -> cmdSet input
             | ":m"       `isPrefixOf` input -> cmdModule input
+            | ":"        `isPrefixOf` input -> cmdError input
             | otherwise                     -> cmdExpr input
         `GHC.gcatch`
             handleError state
@@ -96,11 +87,24 @@ exit = do
     printText exitMsg
     closeDBs
 
--- | Close the databases which are open
+-- | Close the databases which are open, without modifying the state.
 closeDBs :: DaisonI ()
 closeDBs = do
     state <- getState
     mapM_ (runExpr . sCloseDB) (openDBs state)
+
+-- | Reopen databases closed by closeDBs, keeping the same active database.
+--   Assumes sDefineOpenDBs has been called prior (but after the most
+--   recent call to GHC.load).
+reopenDBs :: DaisonI ()
+reopenDBs = do
+    state <- getState
+    let openAndAddDB db = do
+            runExpr $ sOpenDB db
+            updateSessionVariable "_openDBs" $ sAddDB db
+    mapM_ openAndAddDB (openDBs state)
+    runExpr . sOpenDB . fromMaybe "" $ activeDB state
+    return ()
 
 getPrompt :: DaisonState -> String
 getPrompt state =
@@ -113,6 +117,9 @@ removeCmd = unwords . tail . words
 
 removeDoubleQuotes :: String -> String
 removeDoubleQuotes = filter (/= '"')
+
+cmdError :: String -> DaisonI()
+cmdError input = GHC.throw $ UnknownCmd (takeWhile (' ' /=) input)
 
 cmdQuit :: DaisonI ()
 cmdQuit = return ()
@@ -129,7 +136,7 @@ cmdPrintHelp = do
     printText helpText
     loop
 
--- not yet tested
+-- | Set extensions on startup
 setStartupArgs :: DaisonI ()
 setStartupArgs = do
     args <- GHC.liftIO getArgs
@@ -143,8 +150,6 @@ setStartupArgs = do
         ws -> do
             mapM_ (\(GHC.Warn _ (GHC.L _ s)) -> GHC.liftIO $ print s) ws
             loop
-
-
 
 -- | Set extensions
 cmdSet :: String -> DaisonI ()
@@ -160,8 +165,6 @@ cmdSet input = do
         ws -> do
             mapM_ (\(GHC.Warn _ (GHC.L _ s)) -> GHC.liftIO $ print s) ws
             loop
-
-
 
 -- | Updates the current directory
 cmdCd :: String -> DaisonI ()
@@ -180,10 +183,10 @@ cmdOpen input = do
     state <- getState
     let arg = removeDoubleQuotes $ words input !! 1
     let dbs = openDBs state
-    runExpr $ "_activeDB <- openDB \"" ++ arg ++ "\""
     if arg `elem` dbs
         then modifyState $ \st -> st{activeDB = Just arg}
         else do
+            runExpr $ sOpenDB arg
             updateSessionVariable "_openDBs" $ sAddDB arg
             modifyState $ \st -> st{activeDB = Just arg,
                                     openDBs = arg : dbs}
@@ -217,14 +220,16 @@ cmdImport input = do
     target <- liftGhc $ GHC.guessTarget (removeCmd input) Nothing
     case GHC.targetId target of
         (GHC.TargetFile fp _) -> do
+            closeDBs
             cm <- liftGhc $ GHC.compileToCoreModule fp
             let mName = GHC.moduleNameString $ GHC.moduleName $ GHC.cm_module cm
             liftGhc $ GHC.setTargets [target]
             res <- liftGhc $ GHC.load GHC.LoadAllTargets
             m <- liftGhc $ GHC.findModule (GHC.mkModuleName mName) Nothing
             addImport (makeIIDecl $ GHC.moduleName  m)
+            runExpr sDefineOpenDBs
+            reopenDBs
             loop
-
 
 cmdModule :: String -> DaisonI ()
 cmdModule input = do
@@ -244,25 +249,6 @@ cmdExpr expr = do
     if isQuery then runDaisonStmt expr else runExpr expr
     loop
 
--- | Perform a Daison transaction.
---   Throws an exception if no database has been opened.
---   Displays the result in a navigable format if it is not short.
-runDaisonStmt :: String -> DaisonI [GHC.Name]
-runDaisonStmt stmt = do
-    state <- getState
-    t <- exprType stmt
-    daisonStmt <- mToDaison stmt
-    let query = "it <- runDaison _activeDB "
-                ++ show (mode state) ++ " "
-                ++ "$ (" ++ daisonStmt ++ ")"
-    case activeDB state of
-        Nothing -> GHC.throw NoOpenDB
-        Just _  -> do
-            out <- runExpr query
-            res <- getResults out
-            formatTable (head res) stmt >>= display
-            return out
-
 handleError :: DaisonState -> GHC.SomeException -> DaisonI ()
 handleError state e =
         do
@@ -277,16 +263,23 @@ handleError state e =
 --   in terms of itself
 updateSessionVariable :: String -> String -> DaisonI ()
 updateSessionVariable var newValue = do
-    runExpr $ "let temp_" ++ var ++ " = " ++ newValue
-    runExpr $ "let " ++ var ++ " = temp_" ++ var
+    runExpr $ "let _temp" ++ var ++ " = " ++ newValue
+    runExpr $ "let " ++ var ++ " = _temp" ++ var
     return ()
 
 {- Functions to be used as part of runExpr arguments -}
 
--- | Within session: Database
---   Opens a database.
+-- | Within session: String
+--   Surround a string with double quotes (if it has not already), 
+--   so that it can be used as a runExpr argument.
+sString :: String -> String
+sString str@('"':_) = str
+sString str         = "\"" ++ str ++ "\""
+
+-- | Within session: N/A (_activeDB :: Database)
+--   Opens a database, and marks it as active within the GHC session.
 sOpenDB :: String -> String
-sOpenDB fileName = "openDB \"" ++ fileName ++ "\""
+sOpenDB fileName = "_activeDB <- openDB " ++ sString fileName
 
 -- | Within session: IO ()
 --   Closes a database.
@@ -297,16 +290,22 @@ sCloseDB fileName = "closeDB $ " ++ sGetDB (Just fileName)
 --   Returns a Database from the list of opened databases.
 sGetDB :: Maybe String -> String
 sGetDB Nothing = "\"\""
-sGetDB (Just fileName) = "snd . head $ filter (\\(x,_) -> x == \"" ++ fileName ++ "\") _openDBs"
+sGetDB (Just fileName) = "snd . head $ filter (\\(x,_) -> x == " ++ sString fileName ++ ") _openDBs"
 
 -- | Within session: [(String, Database)]
 --   Add the active database to a list of opened databases.
 --   Make sure to do sOpenDB first!
 sAddDB :: String -> String
-sAddDB fileName = "(\"" ++ fileName ++ "\", _activeDB) : _openDBs"
+sAddDB fileName = "(" ++ sString fileName ++ ", _activeDB) : _openDBs"
 
 -- | Within session: [(String, Database)]
 --   Removes a database from the list of opened databases.
 --   Make sure to do sCloseDB first!
 sRemoveDB :: String -> String
-sRemoveDB fileName = "filter (\\(x,_) -> x /= \"" ++ fileName ++ "\") _openDBs"
+sRemoveDB fileName = "filter (\\(x,_) -> x /= " ++ sString fileName ++ ") _openDBs"
+
+-- | Within session: N/A (_openDBs :: [(String, Database)])
+--   Defines the variables needed in order to keep track of multiple databases.
+sDefineOpenDBs :: String
+sDefineOpenDBs = "let _openDBs = [] :: [(String, Database)]"
+

@@ -5,21 +5,19 @@ module Frontend.Eval (
   getResults,
   runExpr,
   runExpr',
+  runDaisonStmt,
   runDecl',
   runStmt'
 ) where
 
 import qualified Frontend.GHCInterface as GHC
+import Frontend.Base
+import Frontend.Format
+import Frontend.Typecheck
 
 import qualified System.Process as P
 
-import Prelude
 import Data.Char (isSymbol)
-
-import Frontend.Base
-import Frontend.Context
-import Frontend.Format
-import Frontend.Typecheck
 
 -- | Send a printable value to the 'less' command via the 'echo' command, 
 --   making it navigable with the arrow keys.
@@ -79,7 +77,26 @@ runExpr expr = do
     case category of
         Just "Statement"   -> runStmt expr
         Just "Declaration" -> runDecl expr
-        _                  -> return []
+        Nothing            -> runStmt expr -- Will print an error message
+
+-- | Perform a Daison transaction.
+--   Throws an exception if no database has been opened.
+--   Displays the result in a navigable format if it is not short.
+runDaisonStmt :: String -> DaisonI [GHC.Name]
+runDaisonStmt stmt = do
+    state <- getState
+    t <- exprType stmt
+    daisonStmt <- mToDaison stmt
+    let query = "it <- runDaison _activeDB "
+                ++ show (mode state) ++ " "
+                ++ "$ (" ++ daisonStmt ++ ")"
+    case activeDB state of
+        Nothing -> GHC.throw NoOpenDB
+        Just _  -> do
+            out <- runExpr query
+            res <- getResults out
+            formatTable (head res) stmt >>= display
+            return out
 
 -- | Run a declaration in the DaisonI monad and return string
 --   representations of the result.

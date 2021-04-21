@@ -1,28 +1,21 @@
 
 module Frontend.Util (
     cd,
-    readExtension,
     printText,
     helpText,
     welcomeMsg,
     exitMsg
 ) where
 
+import qualified Frontend.GHCInterface as GHC
 import Frontend.Base
 
-import qualified Frontend.GHCInterface as GHC
+import System.Directory (doesDirectoryExist)
 
-import System.Environment
-
-import System.Directory
-
-import Data.List.Split
-
-import Data.List
-
-
-import Paths_daison_frontend (version)
+import Data.List.Split (splitOn)
+import Data.List (intercalate)
 import Data.Version (showVersion)
+import Paths_daison_frontend (version)
 
 winToUnix :: String -> String
 winToUnix s = intercalate "/" (splitOn "\\" s)
@@ -48,3 +41,35 @@ cd s = do
             return ()
         False -> return ()
 
+-- | Prints the input on its own line in the console.
+printText :: String -> DaisonI ()
+printText = 
+    GHC.liftIO . putStrLn 
+
+helpText,welcomeMsg,exitMsg :: String
+helpText = 
+    "Commands available from the prompt:\n" ++
+    "   <statement>         evaluate/run <statement>\n" ++
+    "   :dbs                print the list of databases that are currently open\n" ++
+    "   :help, :?           display this list of commands\n" ++
+    "   :t <expr>           show the type of <expr>\n" ++
+    "   :q, :quit           quit the program\n" ++
+
+    "\n" ++
+    "-- Commands for working with databases:\n" ++
+    "   :close <name>       close database with <name> if opened\n" ++
+    "   :db, :open <name>   open database with <name> or set focus to \n" ++
+    "                       database with <name> if already open\n" ++
+
+    "\n" ++
+    "-- Commands for utility:\n" ++
+    "   :cd <dir>           set the current directory\n" ++
+    "   :m <module>         import <module>\n" ++
+    "   :l <filepath>       load a haskell file from <filepath>\n" ++
+    "   :set <option>       set <option>\n"
+
+welcomeMsg = "Daison-Frontend, version " ++ 
+                showVersion version ++
+                "  :? for help"
+
+exitMsg = "Leaving Daison-Frontend. Connections to open databases will be closed."

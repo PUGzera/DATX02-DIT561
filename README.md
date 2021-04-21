@@ -51,8 +51,9 @@ We used Cabal to automate dependency installations, building as well as testing 
 | :close `<name>`     | close database with `<name>` if opened                                 |
 | :db, :open `<name>` | open database with `<name>` or set focus to `<name>` if already opened |
 | :cd `<dir>`         | set the current directory to `<dir>` (relative to current location)    |
-| :import `<module>`  | import `<module>` if it exists and is in scope                         |
-| :set `<option>`     | set `<option>` if it exists                                            |
+| :m `<module>`       | import `<module>` if it exists and is in scope                         |
+| :l `<filepath>`     | load a haskell file from `<filepath>`                                  |
+| :set `<option>`     | set `<option>`                                                         |
 ## Authors
 
 | Name                      | GitHub-handle                                     |
