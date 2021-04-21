@@ -77,7 +77,7 @@ runExpr expr = do
     case category of
         Just "Statement"   -> runStmt expr
         Just "Declaration" -> runDecl expr
-        _                  -> return []
+        Nothing            -> runStmt expr -- Will print an error message
 
 -- | Perform a Daison transaction.
 --   Throws an exception if no database has been opened.
