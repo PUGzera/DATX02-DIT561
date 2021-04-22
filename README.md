@@ -46,6 +46,10 @@ We used Cabal to automate dependency installations, building as well as testing 
 | `<statement>`       | evaluate/run `<statement>`                                             |
 | :dbs                | print the list of databases that are currently open                    |
 | :?, :help           | display this list of commands                                          |
+| :log path           | display the log file's path                                            |
+| :log show           | display the log file's contents                                        |
+| :log toggle         | enable/disable logging                                                 |
+| :log wipe           | attempt to wipe the log file's contents                                |
 | :t `<expr>`         | show the type of `<expr>`                                              |
 | :q, :quit           | quit the program                                                       |
 | :close `<name>`     | close database with `<name>` if opened                                 |

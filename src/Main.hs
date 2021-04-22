@@ -1,9 +1,21 @@
 module Main (
   main
 ) where
+
+import qualified Frontend.GHCInterface as GHC
 import Frontend.Run (run)
+
 import System.Console.Haskeline
+import System.Directory
 
-settings = defaultSettings {historyFile = Just "daison_history"}
+folderName = "Daison-Frontend"
+logName = ".daison_history"
 
-main = run $ runInputT settings . getInputLine 
+main = do
+    dataPath <- getAppUserDataDirectory folderName
+    createDirectoryIfMissing True dataPath
+    let fullPath = Just $ dataPath ++ '/' : logName
+    let settings = defaultSettings{historyFile = fullPath}
+    let input logInput = runInputT settings{autoAddHistory = logInput} . getInputLine
+    
+    run fullPath input
