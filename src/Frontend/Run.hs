@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, BangPatterns #-}
 
 -- | The loop of the program.
 module Frontend.Run (
@@ -12,10 +12,12 @@ import Frontend.Eval
 import Frontend.Typecheck
 import Frontend.Util
 
+import qualified System.IO as SIO
 import System.Environment (getArgs)
 import System.Directory (getCurrentDirectory)
 
 import Control.Concurrent (myThreadId)
+import Control.Monad (replicateM_)
 import Data.Maybe (fromMaybe)
 import Data.List (isPrefixOf)
 
@@ -24,8 +26,8 @@ import System.Posix.Signals
 #endif
 
 -- | Start a session with initial values and then wait for user input.
-run :: (String -> IO (Maybe String)) -> IO ()
-run input = do
+run :: Maybe FilePath -> (Bool -> String -> IO (Maybe String)) -> IO ()
+run logFilePath input = do
 #if !defined(mingw32_HOST_OS) && !defined(TEST)
     -- (Non-Windows)
     -- Ensure run is not in a half-active state after CTRL+C when run in GHCi
@@ -33,7 +35,8 @@ run input = do
     installHandler keyboardSignal (Catch (GHC.throwTo this GHC.UserInterrupt)) Nothing
 #endif
     d <- getCurrentDirectory
-    let state = emptyState{input=input, currentDirectory=d}
+    let state = emptyState{input=input, logInput=True, logPath=logFilePath,
+                           currentDirectory=d}
     runGhc state $ do
         initSession
         printText welcomeMsg
@@ -58,7 +61,7 @@ loop :: DaisonI ()
 loop = do
     state <- getState
 
-    res <- GHC.liftIO $ input state $ getPrompt state
+    res <- GHC.liftIO $ input state (logInput state) $ getPrompt state
     case res of
         Nothing      -> cmdQuit
         Just ""      -> loop
@@ -76,6 +79,7 @@ loop = do
             | ":cd "     `isPrefixOf` input -> cmdCd input
             | ":set "    `isPrefixOf` input -> cmdSet input
             | ":m"       `isPrefixOf` input -> cmdModule input
+            | ":log"     `isPrefixOf` input -> cmdLog input 
             | ":"        `isPrefixOf` input -> cmdError input
             | otherwise                     -> cmdExpr input
         `GHC.gcatch`
@@ -242,6 +246,51 @@ cmdType input = do
     t <- exprType arg
     GHC.liftIO $ putStrLn $ arg ++ " :: " ++ t
     loop
+
+-- | Interact with the log file:
+--   :log path   => display the log file's path
+--   :log show   => display the contents of the log file
+--   :log toggle => enable/disable logging (default: enabled)
+--   :log wipe   => attempts to wipe the log file
+--   :log _      => display a help message.
+cmdLog :: String -> DaisonI ()
+cmdLog input = do
+    let arg = removeCmd input
+    state <- getState
+    cmdLog' arg state
+    loop
+
+cmdLog' "path" state = ifLogExists $ \path -> printText path
+
+cmdLog' "show" state = ifLogExists $ \path -> do
+    contents <- GHC.liftIO $ readFile path
+    display' $ GHC.text contents
+    
+cmdLog' "toggle" state = do
+    let logInput' = not $ logInput state
+    modifyState $ \st -> st{logInput=logInput'}
+    printText $ "Logging has been " ++ 
+                if logInput' then "ENABLED." else "DISABLED." 
+
+cmdLog' "wipe" state = ifLogExists $ \path -> do
+    handle <- GHC.liftIO $ SIO.openFile path SIO.ReadWriteMode
+    contents <- GHC.liftIO $ SIO.hGetContents handle
+    let ![!o1,!o2] = map (replicate (length contents)) ['\xaa','\x55']
+    GHC.liftIO $ SIO.hClose handle
+    replicateM_ 3 $ mapM_ (GHC.liftIO . writeFile path) [o1,o2]
+    GHC.liftIO $ writeFile path "" -- empty file
+    printText "Log file wiped."
+  
+cmdLog' _ state = printText $
+    ":log {path|show|toggle|wipe}\n" ++
+    ":? for help"
+
+ifLogExists :: (FilePath -> DaisonI ()) -> DaisonI () 
+ifLogExists action = do
+    path <- fromMaybe "" . logPath <$> getState 
+    if (not . null) path
+        then action path
+        else GHC.throw NoLogFile
 
 cmdExpr :: String -> DaisonI ()
 cmdExpr expr = do

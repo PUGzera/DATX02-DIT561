@@ -14,6 +14,8 @@ logName = ".daison_history"
 main = do
     dataPath <- getAppUserDataDirectory folderName
     createDirectoryIfMissing True dataPath
-    let fullPath = dataPath ++ '/' : logName
-    let settings = defaultSettings {historyFile = Just fullPath}
-    run $ runInputT settings . getInputLine 
+    let fullPath = Just $ dataPath ++ '/' : logName
+    let settings = defaultSettings{historyFile = fullPath}
+    let input logInput = runInputT settings{autoAddHistory = logInput} . getInputLine
+    
+    run fullPath input

@@ -31,7 +31,9 @@ data DaisonState = DaisonState {
     openDBs :: [String], -- ^ A list of all databases that are currently open
     modules :: [GHC.InteractiveImport], -- ^ List of imported modules
     flags :: Maybe GHC.DynFlags, -- ^ Extra flags which GHC commands are run with
-    input :: String -> IO (Maybe String), -- ^ Latest input from the user
+    input :: Bool -> String -> IO (Maybe String), -- ^ Latest input from the user
+    logInput :: Bool, -- ^ Log input to allow arrow key navigation
+    logPath :: Maybe FilePath, -- ^ Path to log file
     currentDirectory :: String -- ^ Current working directory
 }
 
@@ -40,12 +42,12 @@ data DaisonState = DaisonState {
 newtype DaisonI a = DaisonI{ exec :: DaisonState -> GHC.Ghc (a, DaisonState) }
 
 -- | Used to display errors.
-data DaisonIError = DBNotOpen | NoOpenDB | UnknownCmd String
+data DaisonIError = DBNotOpen | NoLogFile | NoOpenDB | UnknownCmd String
     deriving Typeable
 
 -- | Represents an empty state with nothing set.
 emptyState :: DaisonState
-emptyState = DaisonState ReadWriteMode Nothing [] [] Nothing (\_ -> return Nothing) "" -- may need to get actual current directory
+emptyState = DaisonState ReadWriteMode Nothing [] [] Nothing (\_ _ -> return Nothing) False Nothing "" -- may need to get actual current directory
 
 -- | Returns the current state in the `DaisonI` monad.
 getState :: DaisonI DaisonState
@@ -106,6 +108,7 @@ instance GHC.ExceptionMonad DaisonI where
 
 instance Show DaisonIError where
     show DBNotOpen = "database has not been opened"
+    show NoLogFile = "no log file detected"
     show NoOpenDB = "no open database found"
     show (UnknownCmd cmd) = "unknown command " ++ cmd
 

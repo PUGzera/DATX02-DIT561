@@ -31,8 +31,8 @@ iPeopleName = index tPeople "Name" name
 
 -- | Send strings from an IORef to the front-end, one by one.
 --   Empties the IORef.
-getNextInput :: IORef [String] -> String -> IO (Maybe String)
-getNextInput inputRef _prompt= do
+getNextInput :: IORef [String] -> Bool -> String -> IO (Maybe String)
+getNextInput inputRef _logInput _prompt = do
     next <- readIORef inputRef
     case next of
         []       -> return Nothing
@@ -100,7 +100,7 @@ prop_readFromDatabase testData = ioProperty $ do
     (fp, fh) <- openTempFile' readFromDatabase
     hDuplicateTo fh stdout
     cmds <- input_readFromDatabase
-    run $ getNextInput cmds
+    run Nothing $ getNextInput cmds
     hDuplicateTo stdoutCopy stdout
     hClose fh
 

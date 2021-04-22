@@ -48,10 +48,14 @@ printText =
 
 helpText,welcomeMsg,exitMsg :: String
 helpText = 
-    "Commands available from the prompt:\n" ++
+    "-- Commands available from the prompt:\n" ++
     "   <statement>         evaluate/run <statement>\n" ++
     "   :dbs                print the list of databases that are currently open\n" ++
     "   :help, :?           display this list of commands\n" ++
+    "   :log path           display the log file's path\n" ++
+    "        show           display the log file's contents\n" ++
+    "        toggle         enable/disable logging\n" ++
+    "        wipe           attempt to wipe the log file's contents\n" ++
     "   :t <expr>           show the type of <expr>\n" ++
     "   :q, :quit           quit the program\n" ++
 
@@ -70,6 +74,8 @@ helpText =
 
 welcomeMsg = "Daison-Frontend, version " ++ 
                 showVersion version ++
-                "  :? for help"
+                "  :? for help\n" ++
+             "Note: A log of user input is kept in order to enable arrow key navigation.\n" ++
+             "      Use the help command for more information."
 
 exitMsg = "Leaving Daison-Frontend. Connections to open databases will be closed."
