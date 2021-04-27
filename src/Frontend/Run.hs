@@ -71,15 +71,15 @@ loop = do
         Just ":q"    -> cmdQuit
         Just ":quit" -> cmdQuit
         Just input
-            | ":close "  `isPrefixOf` input -> cmdClose input
             | ":db "     `isPrefixOf` input -> cmdOpen input
-            | ":l "      `isPrefixOf` input -> cmdImport input
             | ":open "   `isPrefixOf` input -> cmdOpen input
+            | ":close "  `isPrefixOf` input -> cmdClose input
+            | ":l "      `isPrefixOf` input -> cmdImport input
             | ":t "      `isPrefixOf` input -> cmdType input
             | ":cd "     `isPrefixOf` input -> cmdCd input
             | ":set "    `isPrefixOf` input -> cmdSet input
             | ":m"       `isPrefixOf` input -> cmdModule input
-            | ":log"     `isPrefixOf` input -> cmdLog input 
+            | ":log"     `isPrefixOf` input -> cmdLog input
             | ":"        `isPrefixOf` input -> cmdError input
             | otherwise                     -> cmdExpr input
         `GHC.gcatch`
@@ -267,12 +267,12 @@ cmdLog' "path" state = ifLogExists $ \path -> printText path
 cmdLog' "show" state = ifLogExists $ \path -> do
     contents <- GHC.liftIO $ readFile path
     display' $ GHC.text contents
-    
+
 cmdLog' "toggle" state = do
     let logInput' = not $ logInput state
     modifyState $ \st -> st{logInput=logInput'}
-    printText $ "Logging has been " ++ 
-                if logInput' then "ENABLED." else "DISABLED." 
+    printText $ "Logging has been " ++
+                if logInput' then "ENABLED." else "DISABLED."
 
 cmdLog' "wipe" state = ifLogExists $ \path -> do
     handle <- GHC.liftIO $ SIO.openFile path SIO.ReadWriteMode
@@ -282,14 +282,14 @@ cmdLog' "wipe" state = ifLogExists $ \path -> do
     replicateM_ 3 $ mapM_ (GHC.liftIO . writeFile path) [o1,o2]
     GHC.liftIO $ writeFile path "" -- empty file
     printText "Log file wiped."
-  
+
 cmdLog' _ state = printText $
     ":log {path|show|toggle|wipe}\n" ++
     ":? for help"
 
-ifLogExists :: (FilePath -> DaisonI ()) -> DaisonI () 
+ifLogExists :: (FilePath -> DaisonI ()) -> DaisonI ()
 ifLogExists action = do
-    path <- fromMaybe "" . logPath <$> getState 
+    path <- fromMaybe "" . logPath <$> getState
     if (not . null) path
         then action path
         else GHC.throw NoLogFile
@@ -321,7 +321,7 @@ updateSessionVariable var newValue = do
 {- Functions to be used as part of runExpr arguments -}
 
 -- | Within session: String
---   Surround a string with double quotes (if it has not already), 
+--   Surround a string with double quotes (if it has not already),
 --   so that it can be used as a runExpr argument.
 sString :: String -> String
 sString str@('"':_) = str
@@ -359,4 +359,3 @@ sRemoveDB fileName = "filter (\\(x,_) -> x /= " ++ sString fileName ++ ") _openD
 --   Defines the variables needed in order to keep track of multiple databases.
 sDefineOpenDBs :: String
 sDefineOpenDBs = "let _openDBs = [] :: [(String, Database)]"
-
