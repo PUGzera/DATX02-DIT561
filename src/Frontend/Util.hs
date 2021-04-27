@@ -28,7 +28,7 @@ cd' ".." s = reverse $ dropWhile (\c -> c /= '/') (reverse s)
 cd' d s    = s ++ "/" ++ d
 
 
--- ToDo: Check if OS before calling winToUnix or unixToWin
+-- TODO: Check if OS before calling winToUnix or unixToWin
 cd :: String -> DaisonI ()
 cd s = do
     st <- getState
@@ -37,18 +37,20 @@ cd s = do
     case id of
         True -> do
             modifyState (\st -> st { currentDirectory = ud } )
-            GHC.liftIO $ print ud
+            GHC.liftIO $ putStrLn ("Working directory set to " ++ ud)
             return ()
-        False -> return ()
+        False -> do
+            GHC.liftIO $ putStrLn "No such directory"
+            return ()
 
 -- | Prints the input on its own line in the console.
 printText :: String -> DaisonI ()
 printText =
     GHC.liftIO . putStrLn
 
-helpText,welcomeMsg,exitMsg :: String
+helpText, welcomeMsg, exitMsg :: String
 helpText =
-    "-- Commands available from the prompt:\n" ++
+    "Commands available from the prompt:\n" ++
     "   <statement>         Evaluate/run <statement>\n" ++
     "   :dbs                Print the list of databases that are currently open\n" ++
     "   :help, :?           Display this list of commands\n" ++
@@ -56,11 +58,12 @@ helpText =
     "        show           Display the log file's contents\n" ++
     "        toggle         Enable/disable logging\n" ++
     "        wipe           Attempt to wipe the log file's contents\n" ++
-    "   :t <expr>           Show the type of <expr>\n" ++
-    "   :q, :quit           Quit the program\n" ++
+    "   :type <expr>        Show the type of <expr>\n" ++
+    "   :quit, :q           Quit the program\n" ++
 
+    "\n\n" ++
+    "   -- Commands for working with databases:\n" ++
     "\n" ++
-    "-- Commands for working with databases:\n" ++
     "   :open <name>        Open database with <name> or set focus to \n" ++
     "                       database with <name> if already open.\n" ++
     "                       This command creates a database with <name>\n" ++
@@ -68,11 +71,12 @@ helpText =
     "   :close <name>       Close database with <name> if opened\n" ++
     "   :db <name>          Same as :open\n" ++
 
+    "\n\n" ++
+    "   -- Commands for utility:\n" ++
     "\n" ++
-    "-- Commands for utility:\n" ++
     "   :cd <dir>           Set the current directory\n" ++
-    "   :m <module>         Import <module>\n" ++
-    "   :l <filepath>       Load a Haskell file from <filepath>\n" ++
+    "   :module <module>    Import <module>\n" ++
+    "   :load <filepath>    Load a Haskell file from <filepath>\n" ++
     "   :set <option>       Set <option>\n"
 
 welcomeMsg = "Daison-Frontend, version " ++

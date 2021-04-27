@@ -72,14 +72,26 @@ loop = do
         Just ":quit" -> cmdQuit
         Just input
             | ":db "     `isPrefixOf` input -> cmdOpen input
+
             | ":open "   `isPrefixOf` input -> cmdOpen input
+            | ":o "      `isPrefixOf` input -> cmdOpen input
+
             | ":close "  `isPrefixOf` input -> cmdClose input
+            | ":c "      `isPrefixOf` input -> cmdClose input
+
+            | ":load "   `isPrefixOf` input -> cmdImport input
             | ":l "      `isPrefixOf` input -> cmdImport input
+
+            | ":type "   `isPrefixOf` input -> cmdType input
             | ":t "      `isPrefixOf` input -> cmdType input
+
+            | ":module "  `isPrefixOf` input -> cmdModule input
+            | ":m "       `isPrefixOf` input -> cmdModule input
+
             | ":cd "     `isPrefixOf` input -> cmdCd input
             | ":set "    `isPrefixOf` input -> cmdSet input
-            | ":m"       `isPrefixOf` input -> cmdModule input
-            | ":log"     `isPrefixOf` input -> cmdLog input
+
+            | ":log "    `isPrefixOf` input -> cmdLog input
             | ":"        `isPrefixOf` input -> cmdError input
             | otherwise                     -> cmdExpr input
         `GHC.gcatch`
