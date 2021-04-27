@@ -107,10 +107,10 @@ instance GHC.ExceptionMonad DaisonI where
                     reflectDaisonI st (f g_restore) ref
 
 instance Show DaisonIError where
-    show DBNotOpen = "database has not been opened"
-    show NoLogFile = "no log file detected"
-    show NoOpenDB = "no open database found"
-    show (UnknownCmd cmd) = "unknown command " ++ cmd
+    show DBNotOpen = "Database has not been opened"
+    show NoLogFile = "No log file detected"
+    show NoOpenDB = "No open database found. Try :open <name>"
+    show (UnknownCmd cmd) = "Unknown command " ++ cmd
 
 instance E.Exception DaisonIError
 
