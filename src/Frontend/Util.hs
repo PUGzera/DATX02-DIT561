@@ -40,7 +40,7 @@ cd s = do
             GHC.liftIO $ putStrLn ("Working directory set to " ++ ud)
             return ()
         False -> do
-            GHC.liftIO $ putStrLn "No such directory"
+            GHC.throw NoSuchDir
             return ()
 
 -- | Prints the input on its own line in the console.

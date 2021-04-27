@@ -42,8 +42,12 @@ data DaisonState = DaisonState {
 newtype DaisonI a = DaisonI{ exec :: DaisonState -> GHC.Ghc (a, DaisonState) }
 
 -- | Used to display errors.
-data DaisonIError = DBNotOpen | NoLogFile | NoOpenDB | UnknownCmd String
-    deriving Typeable
+data DaisonIError = DBNotOpen
+                  | NoLogFile
+                  | NoOpenDB
+                  | NoSuchDir
+                  | UnknownCmd String
+                      deriving Typeable
 
 -- | Represents an empty state with nothing set.
 emptyState :: DaisonState
@@ -110,6 +114,7 @@ instance Show DaisonIError where
     show DBNotOpen = "Database has not been opened"
     show NoLogFile = "No log file detected"
     show NoOpenDB = "No open database found. Try :open <name>"
+    show NoSuchDir = "No such directory"
     show (UnknownCmd cmd) = "Unknown command " ++ cmd
 
 instance E.Exception DaisonIError
