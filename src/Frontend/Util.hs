@@ -43,36 +43,39 @@ cd s = do
 
 -- | Prints the input on its own line in the console.
 printText :: String -> DaisonI ()
-printText = 
-    GHC.liftIO . putStrLn 
+printText =
+    GHC.liftIO . putStrLn
 
 helpText,welcomeMsg,exitMsg :: String
-helpText = 
+helpText =
     "-- Commands available from the prompt:\n" ++
-    "   <statement>         evaluate/run <statement>\n" ++
-    "   :dbs                print the list of databases that are currently open\n" ++
-    "   :help, :?           display this list of commands\n" ++
-    "   :log path           display the log file's path\n" ++
-    "        show           display the log file's contents\n" ++
-    "        toggle         enable/disable logging\n" ++
-    "        wipe           attempt to wipe the log file's contents\n" ++
-    "   :t <expr>           show the type of <expr>\n" ++
-    "   :q, :quit           quit the program\n" ++
+    "   <statement>         Evaluate/run <statement>\n" ++
+    "   :dbs                Print the list of databases that are currently open\n" ++
+    "   :help, :?           Display this list of commands\n" ++
+    "   :log path           Display the log file's path\n" ++
+    "        show           Display the log file's contents\n" ++
+    "        toggle         Enable/disable logging\n" ++
+    "        wipe           Attempt to wipe the log file's contents\n" ++
+    "   :t <expr>           Show the type of <expr>\n" ++
+    "   :q, :quit           Quit the program\n" ++
 
     "\n" ++
     "-- Commands for working with databases:\n" ++
-    "   :close <name>       close database with <name> if opened\n" ++
-    "   :db, :open <name>   open database with <name> or set focus to \n" ++
-    "                       database with <name> if already open\n" ++
+    "   :open <name>        Open database with <name> or set focus to \n" ++
+    "                       database with <name> if already open.\n" ++
+    "                       This command creates a database with <name>\n" ++
+    "                       if it doesn't exist.\n" ++
+    "   :close <name>       Close database with <name> if opened\n" ++
+    "   :db <name>          Same as :open\n" ++
 
     "\n" ++
     "-- Commands for utility:\n" ++
-    "   :cd <dir>           set the current directory\n" ++
-    "   :m <module>         import <module>\n" ++
-    "   :l <filepath>       load a haskell file from <filepath>\n" ++
-    "   :set <option>       set <option>\n"
+    "   :cd <dir>           Set the current directory\n" ++
+    "   :m <module>         Import <module>\n" ++
+    "   :l <filepath>       Load a Haskell file from <filepath>\n" ++
+    "   :set <option>       Set <option>\n"
 
-welcomeMsg = "Daison-Frontend, version " ++ 
+welcomeMsg = "Daison-Frontend, version " ++
                 showVersion version ++
                 "  :? for help\n" ++
              "Note: A log of user input is kept in order to enable arrow key navigation.\n" ++
