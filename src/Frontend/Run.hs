@@ -15,11 +15,12 @@ import Frontend.Util
 import qualified System.IO as SIO
 import System.Environment (getArgs)
 import System.Directory (getCurrentDirectory)
+import System.Console.GetOpt
 
 import Control.Concurrent (myThreadId)
-import Control.Monad (replicateM_)
+import Control.Monad (replicateM_, unless)
 import Data.Maybe (fromMaybe)
-import Data.List (isPrefixOf)
+import Data.List (isPrefixOf, isSuffixOf)
 
 #if !defined(mingw32_HOST_OS) && !defined(TEST)
 import System.Posix.Signals
@@ -156,31 +157,44 @@ cmdPrintHelp = do
 setStartupArgs :: DaisonI ()
 setStartupArgs = do
     args <- GHC.liftIO getArgs
-    flags <- liftGhc $ GHC.getSessionDynFlags
-    (flags', lo, ws) <- GHC.liftIO $ GHC.parseDynamicFlagsCmdLine flags (map (\i -> GHC.L GHC.noSrcSpan i) args)
-    mapM_ (\(GHC.L _ s) -> GHC.liftIO $ print $ "Unknown Argument: " ++ s) lo
-    case ws of
-        [] -> do
-            liftGhc $ GHC.setSessionDynFlags flags'
-            loop
-        ws -> do
-            mapM_ (\(GHC.Warn _ (GHC.L _ s)) -> GHC.liftIO $ print s) ws
-            loop
+    let newFlags = filter (isPrefixOf "-") args
+    let haskellSourceFileArg = getFirstArgWithSuffix args ".hs"
+    let databaseArgs = filter (isSuffixOf ".db") args
+    unless (null newFlags) $ do 
+        printText $ "Attempting to set flag arguments: " ++ unwords newFlags
+        setExtensions $ map (GHC.L GHC.noSrcSpan) newFlags
+    unless (null haskellSourceFileArg) $ do 
+        printText $ "Attempting to load Haskell file from arguments - " ++ haskellSourceFileArg
+        loadFile haskellSourceFileArg
+    unless (null databaseArgs) $ do
+        printText $ "Setting open databases from arguments - " ++ unwords databaseArgs
+        mapM_ openDb databaseArgs
+    loop
+
+getFirstArgWithSuffix :: [String] -> String -> String
+getFirstArgWithSuffix args suff = do
+    let files = filter (isSuffixOf suff) args
+    case files of
+        [] -> ""
+        xs -> head xs
 
 -- | Set extensions
 cmdSet :: String -> DaisonI ()
 cmdSet input = do
     let arg = removeCmd input
-    flags <- liftGhc $ GHC.getSessionDynFlags
-    (flags', lo, ws) <- GHC.liftIO $ GHC.parseDynamicFlags flags [GHC.L GHC.noSrcSpan arg]
+    setExtensions [GHC.L GHC.noSrcSpan arg]
+    loop
+
+setExtensions :: [GHC.GenLocated GHC.SrcSpan String] -> DaisonI ()
+setExtensions newExtensions = do
+    flags <- liftGhc GHC.getSessionDynFlags
+    (flags', lo, ws) <- GHC.liftIO $ GHC.parseDynamicFlags flags newExtensions
     mapM_ (\(GHC.L _ s) -> GHC.liftIO $ print $ "Unknown Flag: " ++ s) lo
     case ws of
-        [] -> do
+        [] -> do 
             liftGhc $ GHC.setSessionDynFlags flags'
-            loop
-        ws -> do
-            mapM_ (\(GHC.Warn _ (GHC.L _ s)) -> GHC.liftIO $ print s) ws
-            loop
+            return ()
+        ws -> mapM_ (\ (GHC.Warn _ (GHC.L _ s)) -> GHC.liftIO $ print s) ws
 
 -- | Updates the current directory
 cmdCd :: String -> DaisonI ()
@@ -191,13 +205,18 @@ cmdCd input = do
     runExpr $ "setCurrentDirectory \"" ++ currentDirectory st ++ "\""
     loop
 
+cmdOpen :: String -> DaisonI ()
+cmdOpen input = do
+    openDb $ words input !! 1
+    loop
+
 -- | Opens a database within the session and marks it as active,
 --   while keeping track of other open databases.
 --   Already opened databases will not be reopened.
-cmdOpen :: String -> DaisonI ()
-cmdOpen input = do
+openDb :: String -> DaisonI ()
+openDb dbName = do
     state <- getState
-    let arg = removeDoubleQuotes $ words input !! 1
+    let arg = removeDoubleQuotes dbName
     let dbs = openDBs state
     if arg `elem` dbs
         then modifyState $ \st -> st{activeDB = Just arg}
@@ -206,7 +225,6 @@ cmdOpen input = do
             updateSessionVariable "_openDBs" $ sAddDB arg
             modifyState $ \st -> st{activeDB = Just arg,
                                     openDBs = arg : dbs}
-    loop
 
 -- | Closes a database within the session.
 --   If this database was the active one, also marks the earliest opened
@@ -233,9 +251,16 @@ cmdClose input = do
 
 cmdImport :: String -> DaisonI ()
 cmdImport input = do
+    loadFile $ removeCmd input
+    loop
+
+-- | Load a Haskell source file to the session.
+-- Needs to define a module.
+loadFile :: String -> DaisonI ()
+loadFile input = do
     state <- getState
     let cdir = currentDirectory state
-    target <- liftGhc $ GHC.guessTarget (cdir ++ "/" ++ (removeCmd input)) Nothing
+    target <- liftGhc $ GHC.guessTarget (cdir ++ "/" ++ input) Nothing
     case GHC.targetId target of
         (GHC.TargetFile fp _) -> do
             closeDBs
@@ -247,7 +272,6 @@ cmdImport input = do
             addImport (makeIIDecl $ GHC.moduleName  m)
             runExpr sDefineOpenDBs
             reopenDBs
-            loop
 
 cmdModule :: String -> DaisonI ()
 cmdModule input = do
