@@ -158,7 +158,7 @@ setStartupArgs :: DaisonI ()
 setStartupArgs = do
     args <- GHC.liftIO getArgs
     let newFlags = filter (isPrefixOf "-") args
-    let haskellSourceFileArg = getFirstArgWithSuffix args ".hs"
+    let haskellSourceFileArg = getFirstHaskellFileArg args
     let databaseArgs = filter (isSuffixOf ".db") args
     unless (null newFlags) $ do 
         printText $ "Attempting to set flag arguments: " ++ unwords newFlags
@@ -171,9 +171,10 @@ setStartupArgs = do
         mapM_ openDb databaseArgs
     loop
 
-getFirstArgWithSuffix :: [String] -> String -> String
-getFirstArgWithSuffix args suff = do
-    let files = filter (isSuffixOf suff) args
+getFirstHaskellFileArg :: [String] -> String
+getFirstHaskellFileArg args = do
+    let files = filter (isSuffixOf ".hs") args ++ filter (isSuffixOf ".lhs") args
+    -- mapM_ putStrLn files
     case files of
         [] -> ""
         xs -> head xs
