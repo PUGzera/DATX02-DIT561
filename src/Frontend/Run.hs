@@ -174,7 +174,6 @@ setStartupArgs = do
 getFirstHaskellFileArg :: [String] -> String
 getFirstHaskellFileArg args = do
     let files = filter (isSuffixOf ".hs") args ++ filter (isSuffixOf ".lhs") args
-    -- mapM_ putStrLn files
     case files of
         [] -> ""
         xs -> head xs
