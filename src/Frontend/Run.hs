@@ -14,7 +14,7 @@ import Frontend.Util
 
 import qualified System.IO as SIO
 import System.Environment (getArgs)
-import System.Directory (getCurrentDirectory)
+import System.Directory (getCurrentDirectory, doesFileExist)
 import System.Console.GetOpt
 
 import Control.Concurrent (myThreadId)
@@ -261,18 +261,24 @@ loadFile :: String -> DaisonI ()
 loadFile input = do
     state <- getState
     let cdir = currentDirectory state
-    target <- liftGhc $ GHC.guessTarget (cdir ++ "/" ++ input) Nothing
+    let filePath = cdir ++ "/" ++ input
+    target <- liftGhc $ GHC.guessTarget filePath Nothing
     case GHC.targetId target of
         (GHC.TargetFile fp _) -> do
             closeDBs
-            cm <- liftGhc $ GHC.compileToCoreModule fp
-            let mName = GHC.moduleNameString $ GHC.moduleName $ GHC.cm_module cm
-            liftGhc $ GHC.setTargets [target]
-            res <- liftGhc $ GHC.load GHC.LoadAllTargets
-            m <- liftGhc $ GHC.findModule (GHC.mkModuleName mName) Nothing
-            addImport (makeIIDecl $ GHC.moduleName  m)
-            runExpr sDefineOpenDBs
-            reopenDBs
+            exists <- GHC.liftIO $ doesFileExist filePath
+            if not exists 
+                then printText $ "File " ++ filePath ++ " not found"
+                else do
+                    cm <- liftGhc $ GHC.compileToCoreModule fp
+                    let mName = GHC.moduleNameString $ GHC.moduleName $ GHC.cm_module cm
+                    liftGhc $ GHC.setTargets [target]
+                    res <- liftGhc $ GHC.load GHC.LoadAllTargets
+                    m <- liftGhc $ GHC.findModule (GHC.mkModuleName mName) Nothing
+                    addImport (makeIIDecl $ GHC.moduleName m)
+                    runExpr sDefineOpenDBs
+                    reopenDBs
+                    printText $ "Loaded " ++ filePath
 
 cmdModule :: String -> DaisonI ()
 cmdModule input = do
