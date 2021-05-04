@@ -11,6 +11,7 @@ import Frontend.Context
 import Frontend.Eval
 import Frontend.Typecheck
 import Frontend.Util
+import System.Directory (doesDirectoryExist, doesFileExist)
 
 import qualified System.IO as SIO
 import System.Environment (getArgs)
@@ -258,26 +259,31 @@ cmdImport input = do
 -- Needs to define a module.
 loadFile :: String -> DaisonI ()
 loadFile input = do
-    state <- getState
-    let cdir = currentDirectory state
-    let filePath = cdir ++ "/" ++ input
-    target <- liftGhc $ GHC.guessTarget filePath Nothing
-    case GHC.targetId target of
-        (GHC.TargetFile fp _) -> do
-            closeDBs
-            exists <- GHC.liftIO $ doesFileExist filePath
-            if not exists 
-                then printText $ "File " ++ filePath ++ " not found"
-                else do
-                    cm <- liftGhc $ GHC.compileToCoreModule fp
-                    let mName = GHC.moduleNameString $ GHC.moduleName $ GHC.cm_module cm
-                    liftGhc $ GHC.setTargets [target]
-                    res <- liftGhc $ GHC.load GHC.LoadAllTargets
-                    m <- liftGhc $ GHC.findModule (GHC.mkModuleName mName) Nothing
-                    addImport (makeIIDecl $ GHC.moduleName m)
-                    runExpr sDefineOpenDBs
-                    reopenDBs
-                    printText $ "Loaded " ++ filePath
+    de <- GHC.liftIO $ doesDirectoryExist input
+    fe <- GHC.liftIO $ doesFileExist input
+    if de || (not $ fe) then
+        printText "Input is not a valid/existing file"
+    else do
+        state <- getState
+        let cdir = currentDirectory state
+        let filePath = cdir ++ "/" ++ input
+        target <- liftGhc $ GHC.guessTarget filePath Nothing
+        case GHC.targetId target of
+            (GHC.TargetFile fp _) -> do
+                closeDBs
+                exists <- GHC.liftIO $ doesFileExist filePath
+                if not exists
+                    then printText $ "File " ++ filePath ++ " not found"
+                    else do
+                        cm <- liftGhc $ GHC.compileToCoreModule fp
+                        let mName = GHC.moduleNameString $ GHC.moduleName $ GHC.cm_module cm
+                        liftGhc $ GHC.setTargets [target]
+                        res <- liftGhc $ GHC.load GHC.LoadAllTargets
+                        m <- liftGhc $ GHC.findModule (GHC.mkModuleName mName) Nothing
+                        addImport (makeIIDecl $ GHC.moduleName m)
+                        runExpr sDefineOpenDBs
+                        reopenDBs
+                        printText $ "Loaded " ++ filePath
 
 cmdModule :: String -> DaisonI ()
 cmdModule input = do
