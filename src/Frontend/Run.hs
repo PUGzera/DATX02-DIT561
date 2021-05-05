@@ -261,7 +261,7 @@ loadFile :: String -> DaisonI ()
 loadFile input = do
     de <- GHC.liftIO $ doesDirectoryExist input
     fe <- GHC.liftIO $ doesFileExist input
-    if de || (not $ fe) then
+    if de || not fe then
         printText "Input is not a valid/existing file"
     else do
         state <- getState
