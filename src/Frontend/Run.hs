@@ -259,31 +259,32 @@ cmdImport input = do
 -- Needs to define a module.
 loadFile :: String -> DaisonI ()
 loadFile input = do
-    de <- GHC.liftIO $ doesDirectoryExist input
-    fe <- GHC.liftIO $ doesFileExist input
-    if de || (not $ fe) then
-        printText "Input is not a valid/existing file"
-    else do
         state <- getState
         let cdir = currentDirectory state
         let filePath = cdir ++ "/" ++ input
-        target <- liftGhc $ GHC.guessTarget filePath Nothing
-        case GHC.targetId target of
-            (GHC.TargetFile fp _) -> do
-                closeDBs
-                exists <- GHC.liftIO $ doesFileExist filePath
-                if not exists
-                    then printText $ "File " ++ filePath ++ " not found"
-                    else do
+        (id, target) <- (do {
+            t <- liftGhc $ GHC.guessTarget filePath Nothing;
+            return (GHC.targetId t, Just t)
+        }) `GHC.gcatch` (\e -> do {
+            return (e :: GHC.SomeException); --Casting, might exist a better solution as this is tricking the type system
+            return $ (GHC.TargetFile "" Nothing, Nothing)
+        })
+        case target of
+            Just target' -> do
+                case id of
+                    (GHC.TargetFile fp _) -> do
+                        closeDBs
+                        exists <- GHC.liftIO $ doesFileExist filePath
                         cm <- liftGhc $ GHC.compileToCoreModule fp
                         let mName = GHC.moduleNameString $ GHC.moduleName $ GHC.cm_module cm
-                        liftGhc $ GHC.setTargets [target]
+                        liftGhc $ GHC.setTargets [target']
                         res <- liftGhc $ GHC.load GHC.LoadAllTargets
                         m <- liftGhc $ GHC.findModule (GHC.mkModuleName mName) Nothing
                         addImport (makeIIDecl $ GHC.moduleName m)
                         runExpr sDefineOpenDBs
                         reopenDBs
                         printText $ "Loaded " ++ filePath
+            Nothing -> printText $ "Input is not a valid/existing file"
 
 cmdModule :: String -> DaisonI ()
 cmdModule input = do
