@@ -1,6 +1,7 @@
 -- | Evaluates expressions and runs them in GHC.
 module Frontend.Eval (
   display,
+  display',
   getResult,
   getResults,
   runExpr,
@@ -24,7 +25,14 @@ import Data.Char (isSymbol)
 --   If this is not possible, or if the string is short, print normally 
 --   (e.g. when run from the Windows command-line).
 display :: Show a => a -> DaisonI ()
-display showable = do
+display = display'' False
+
+-- | Same as display, but send to 'less' even if the string is short.
+display' :: Show a => a -> DaisonI ()
+display' = display'' True
+
+display'' :: Show a => Bool -> a -> DaisonI ()
+display'' forceLess showable = do
     let string = show showable
     let sendToLess = do
             (_, Just hout, _, _) <- 
@@ -34,7 +42,7 @@ display showable = do
             P.waitForProcess hcmd
             return $ Right ()
 
-    if isShort string then GHC.liftIO $ print showable
+    if isShort string && not forceLess then GHC.liftIO $ print showable
     else do
         res <- GHC.liftIO $ GHC.catch sendToLess $
                 \e -> (return . Left . show) (e :: GHC.IOException)
@@ -77,7 +85,7 @@ runExpr expr = do
     case category of
         Just "Statement"   -> runStmt expr
         Just "Declaration" -> runDecl expr
-        _                  -> return []
+        Nothing            -> runStmt expr -- Will print an error message
 
 -- | Perform a Daison transaction.
 --   Throws an exception if no database has been opened.
@@ -89,7 +97,7 @@ runDaisonStmt stmt = do
     daisonStmt <- mToDaison stmt
     let query = "it <- runDaison _activeDB "
                 ++ show (mode state) ++ " "
-                ++ "$ (" ++ daisonStmt ++ ")"
+                ++ "(" ++ daisonStmt ++ ")"
     case activeDB state of
         Nothing -> GHC.throw NoOpenDB
         Just _  -> do

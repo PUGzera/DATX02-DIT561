@@ -24,52 +24,64 @@ unixToWin :: String -> String
 unixToWin s = intercalate "\\" (splitOn "/" s)
 
 cd' :: String -> String -> String
-cd' ".." s = reverse $ dropWhile (\c -> c /= '/') (reverse s)
+cd' ".." s = reverse $ dropWhile (/= '/') (reverse s)
 cd' d s    = s ++ "/" ++ d
 
 
--- ToDo: Check if OS before calling winToUnix or unixToWin
+-- TODO: Check if OS before calling winToUnix or unixToWin
 cd :: String -> DaisonI ()
 cd s = do
     st <- getState
     let ud = cd' s $ winToUnix $ currentDirectory st
     id <- GHC.liftIO $ doesDirectoryExist ud
-    case id of
-        True -> do
-            modifyState (\st -> st { currentDirectory = ud } )
-            GHC.liftIO $ print ud
+    if id then 
+        do modifyState (\st -> st { currentDirectory = ud } )
+           GHC.liftIO $ putStrLn ("Working directory set to " ++ ud)
+           return ()
+        else do
+            GHC.throw NoSuchDir
             return ()
-        False -> return ()
 
 -- | Prints the input on its own line in the console.
 printText :: String -> DaisonI ()
-printText = 
-    GHC.liftIO . putStrLn 
+printText =
+    GHC.liftIO . putStrLn
 
-helpText,welcomeMsg,exitMsg :: String
-helpText = 
+helpText, welcomeMsg, exitMsg :: String
+helpText =
     "Commands available from the prompt:\n" ++
-    "   <statement>         evaluate/run <statement>\n" ++
-    "   :dbs                print the list of databases that are currently open\n" ++
-    "   :help, :?           display this list of commands\n" ++
-    "   :t <expr>           show the type of <expr>\n" ++
-    "   :q, :quit           quit the program\n" ++
+    "   <statement>         Evaluate/run <statement>\n" ++
+    "   :dbs                Print the list of databases that are currently open\n" ++
+    "   :help, :?           Display this list of commands\n" ++
+    "   :log path           Display the log file's path\n" ++
+    "        show           Display the log file's contents\n" ++
+    "        toggle         Enable/disable logging\n" ++
+    "        wipe           Attempt to wipe the log file's contents\n" ++
+    "   :type <expr>        Show the type of <expr>\n" ++
+    "   :quit, :q           Quit the program\n" ++
 
+    "\n\n" ++
+    "   -- Commands for working with databases:\n" ++
     "\n" ++
-    "-- Commands for working with databases:\n" ++
-    "   :close <name>       close database with <name> if opened\n" ++
-    "   :db, :open <name>   open database with <name> or set focus to \n" ++
-    "                       database with <name> if already open\n" ++
+    "   :open <name>        Open database with <name> or set focus to \n" ++
+    "                       database with <name> if already open.\n" ++
+    "                       This command creates a database with <name>\n" ++
+    "                       if it doesn't exist.\n" ++
+    "   :close <name>       Close database with <name> if opened\n" ++
+    "   :db <name>          Same as :open\n" ++
 
+    "\n\n" ++
+    "   -- Commands for utility:\n" ++
     "\n" ++
-    "-- Commands for utility:\n" ++
-    "   :cd <dir>           set the current directory\n" ++
-    "   :m <module>         import <module>\n" ++
-    "   :l <filepath>       load a haskell file from <filepath>\n" ++
-    "   :set <option>       set <option>\n"
+    "   :cd <dir>           Set the current directory\n" ++
+    "   :module <module>    Import <module>\n" ++
+    "   :load <filepath>    Load a Haskell file from <filepath>\n" ++
+    "   :set <option>       Set <option>\n"
 
-welcomeMsg = "Daison-Frontend, version " ++ 
+welcomeMsg = "Daison-Frontend, version " ++
                 showVersion version ++
-                "  :? for help"
+                "  :? for help\n" ++
+             "Note: A log of user input is kept in order to enable arrow key navigation.\n" ++
+             "      Use the help command for more information."
 
 exitMsg = "Leaving Daison-Frontend. Connections to open databases will be closed."

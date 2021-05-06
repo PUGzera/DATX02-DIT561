@@ -199,9 +199,9 @@ toTable expr processedRows = do
     let indexCol = "it !!" : map show [0..length processedRows - 1]
     let rowsT = indexCol : transpose (header : processedRows)
     let maxSizes = map (maximum . map length) rowsT
-    let headerSep = intercalate "-+-" $ map (`replicate` '-') maxSizes
+    let headerSep = intercalate "─┼─" $ map (`replicate` '─') maxSizes
 
-    let paddedRows = map (intercalate " | ") $ transpose . padColumns maxSizes $ rowsT
+    let paddedRows = map (intercalate " │ ") $ transpose . padColumns maxSizes $ rowsT
     let formattedRows = head paddedRows : headerSep : tail paddedRows
 
     let table = (GHC.vcat . map GHC.text) formattedRows
