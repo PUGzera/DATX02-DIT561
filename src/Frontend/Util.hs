@@ -24,7 +24,7 @@ unixToWin :: String -> String
 unixToWin s = intercalate "\\" (splitOn "/" s)
 
 cd' :: String -> String -> String
-cd' ".." s = reverse $ dropWhile (\c -> c /= '/') (reverse s)
+cd' ".." s = reverse $ dropWhile (/= '/') (reverse s)
 cd' d s    = s ++ "/" ++ d
 
 
@@ -34,12 +34,11 @@ cd s = do
     st <- getState
     let ud = cd' s $ winToUnix $ currentDirectory st
     id <- GHC.liftIO $ doesDirectoryExist ud
-    case id of
-        True -> do
-            modifyState (\st -> st { currentDirectory = ud } )
-            GHC.liftIO $ putStrLn ("Working directory set to " ++ ud)
-            return ()
-        False -> do
+    if id then 
+        do modifyState (\st -> st { currentDirectory = ud } )
+           GHC.liftIO $ putStrLn ("Working directory set to " ++ ud)
+           return ()
+        else do
             GHC.throw NoSuchDir
             return ()
 
