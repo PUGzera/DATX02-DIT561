@@ -68,7 +68,6 @@ helpText =
     "                       This command creates a database with <name>\n" ++
     "                       if it doesn't exist.\n" ++
     "   :close <name>       Close database with <name> if opened\n" ++
-    "   :db <name>          Same as :open\n" ++
 
     "\n\n" ++
     "   -- Commands for utility:\n" ++

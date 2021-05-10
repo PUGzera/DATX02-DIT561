@@ -73,8 +73,6 @@ loop = do
         Just ":q"    -> cmdQuit
         Just ":quit" -> cmdQuit
         Just input
-            | ":db "     `isPrefixOf` input -> cmdOpen input
-
             | ":open "   `isPrefixOf` input -> cmdOpen input
             | ":o "      `isPrefixOf` input -> cmdOpen input
 
