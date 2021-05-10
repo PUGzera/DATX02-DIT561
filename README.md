@@ -57,7 +57,7 @@ We used Cabal to automate dependency installations, building as well as testing 
 | :cd `<dir>`        | set the current directory to `<dir>` (relative to current location)    |
 | :module `<module>` | import `<module>` if it exists and is in scope                         |
 | :load `<filepath>` | load a haskell file from `<filepath>`                                  |
-| :set `<option>`    | set `<option>`                                                         |
+| :set `<option>`    | set GHC `<option>`                                                     |
 ## Authors
 
 | Name                      | GitHub-handle                                     |

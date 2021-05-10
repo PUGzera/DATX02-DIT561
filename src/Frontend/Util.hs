@@ -75,7 +75,7 @@ helpText =
     "   :cd <dir>           Set the current directory\n" ++
     "   :module <module>    Import <module>\n" ++
     "   :load <filepath>    Load a Haskell file from <filepath>\n" ++
-    "   :set <option>       Set <option>\n"
+    "   :set <option>       Set GHC <option>\n"
 
 welcomeMsg = "Daison-Frontend, version " ++
                 showVersion version ++
