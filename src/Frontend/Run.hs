@@ -12,6 +12,7 @@ import Frontend.Eval
 import Frontend.Typecheck
 import Frontend.Util
 import System.Directory (doesDirectoryExist, doesFileExist)
+import System.Process
 
 import qualified System.IO as SIO
 import System.Environment (getArgs)
@@ -92,6 +93,7 @@ loop = do
             | ":set "    `isPrefixOf` input -> cmdSet input
 
             | ":log "    `isPrefixOf` input -> cmdLog input
+            | ":!"       `isPrefixOf` input -> cmdLineCmd input
             | ":"        `isPrefixOf` input -> cmdError input
             | otherwise                     -> cmdExpr input
         `GHC.gcatch`
@@ -296,6 +298,11 @@ cmdType input = do
     GHC.liftIO $ putStrLn $ arg ++ " :: " ++ t
     loop
 
+cmdLineCmd :: String -> DaisonI ()
+cmdLineCmd input = do
+    let arg = removeCmd input
+    GHC.liftIO $ callCommand arg
+    loop
 -- | Interact with the log file:
 --   :log path   => display the log file's path
 --   :log show   => display the contents of the log file
