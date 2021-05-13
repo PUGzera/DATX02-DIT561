@@ -91,6 +91,7 @@ loop = do
 
             | ":cd "     `isPrefixOf` input -> cmdCd input
             | ":set "    `isPrefixOf` input -> cmdSet input
+            | ":mode"    `isPrefixOf` input -> cmdUpdateAccessMode input
 
             | ":log "    `isPrefixOf` input -> cmdLog input
             | ":!"       `isPrefixOf` input -> cmdLineCmd input
@@ -303,6 +304,22 @@ cmdLineCmd input = do
     let arg = removeCmd input
     GHC.liftIO $ callCommand arg
     loop
+
+cmdUpdateAccessMode :: String -> DaisonI ()
+cmdUpdateAccessMode input = do
+    let arg = removeCmd input
+    let mode = readAccessMode arg
+    case mode of
+        Just m -> do
+            modifyState (\s -> s { mode = m })
+            GHC.liftIO $ print $ "AccessMode successfully updated to " ++ arg
+            loop
+        Nothing -> do
+            GHC.liftIO $ print $ "AccessMode failed to update, " ++ arg ++ " is not a valid AccessMode"
+            loop
+
+
+
 -- | Interact with the log file:
 --   :log path   => display the log file's path
 --   :log show   => display the contents of the log file
