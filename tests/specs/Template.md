@@ -4,11 +4,11 @@ F# *(Unique identifier for test)*
 
 ## Version
 
-2021-mm-dd
+yyyy-mm-dd
 
 ## Description
 
-### Requirement: 
+### Requirement:
 R# *(which requirement the test is mapped to)*
 
 ### Purpose:
