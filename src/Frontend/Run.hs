@@ -42,7 +42,8 @@ run logFilePath input = do
     runGhc state $ do
         initSession
         printText welcomeMsg
-        setStartupArgs `GHC.gfinally` exit
+        setStartupArgs 
+        loop `GHC.gfinally` exit
     return ()
 
 {- Within the session:
@@ -168,7 +169,6 @@ setStartupArgs = do
     unless (null databaseArgs) $ do
         printText $ "Setting open databases from arguments - " ++ unwords databaseArgs
         mapM_ openDb databaseArgs
-    loop
 
 getFirstHaskellFileArg :: [String] -> String
 getFirstHaskellFileArg args = do
