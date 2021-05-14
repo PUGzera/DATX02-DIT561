@@ -65,7 +65,7 @@ executable daison-frontend
 
 test-suite unit-tests
   type:                exitcode-stdio-1.0
-  hs-source-dirs:      test
+  hs-source-dirs:      tests
   main-is:             UnitTests.hs
   build-depends:       daison-frontend-internal-library,
                        base >= 4.12,
