@@ -46,7 +46,7 @@ getNextInput inputRef _logInput _prompt = do
 -- | Create a temporary file given a test label and a file extension.
 mkTempFileName :: String -> String -> String
 mkTempFileName label ext
-    | ext == ".db" = "test/" ++ base
+    | ext == ".db" = "tests/" ++ base
     | otherwise    = base
     where
         base = "temp_" ++ label ++ ext
