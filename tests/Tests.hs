@@ -60,7 +60,7 @@ openDB' label = do
 
 -- | Create a temporary text file in the test folder given a test label.
 openTempFile' :: String -> IO (FilePath, Handle)
-openTempFile' label = openTempFile "test" $ mkTempFileName label ".txt"
+openTempFile' label = openTempFile "tests" $ mkTempFileName label ".txt"
 
 -- Test labels
 
