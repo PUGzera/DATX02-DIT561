@@ -46,6 +46,7 @@ data DaisonIError = DBNotOpen
                   | NoLogFile
                   | NoOpenDB
                   | NoSuchDir
+                  | InvalidAccessMode String
                   | UnknownCmd String
                       deriving Typeable
 
@@ -115,6 +116,7 @@ instance Show DaisonIError where
     show NoLogFile = "No log file detected"
     show NoOpenDB = "No open database found. Try :open <name>"
     show NoSuchDir = "No such directory"
+    show (InvalidAccessMode arg) = arg ++ " is not a valid AccessMode"
     show (UnknownCmd cmd) = "Unknown command " ++ cmd
 
 instance E.Exception DaisonIError

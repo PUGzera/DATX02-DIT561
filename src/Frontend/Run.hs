@@ -11,16 +11,18 @@ import Frontend.Context
 import Frontend.Eval
 import Frontend.Typecheck
 import Frontend.Util
-import System.Directory (doesDirectoryExist, doesFileExist)
-import System.Process
+
+import Database.Daison (AccessMode(..))
 
 import qualified System.IO as SIO
+import System.Console.GetOpt
 import System.Environment (getArgs)
 import System.Directory (getCurrentDirectory, doesFileExist)
-import System.Console.GetOpt
+import System.Process (callCommand)
 
 import Control.Concurrent (myThreadId)
 import Control.Monad (replicateM_, unless)
+import Data.Char (toUpper)
 import Data.Maybe (fromMaybe)
 import Data.List (isPrefixOf, isSuffixOf)
 
@@ -91,10 +93,11 @@ loop = do
 
             | ":cd "     `isPrefixOf` input -> cmdCd input
             | ":set "    `isPrefixOf` input -> cmdSet input
-            | ":mode"    `isPrefixOf` input -> cmdUpdateAccessMode input
+            | ":mode "    `isPrefixOf` input -> cmdUpdateAccessMode input
+            | ":mode"    ==           input -> cmdUpdateAccessMode input
 
             | ":log "    `isPrefixOf` input -> cmdLog input
-            | ":!"       `isPrefixOf` input -> cmdLineCmd input
+            | ":! "       `isPrefixOf` input -> cmdLineCmd input
             | ":"        `isPrefixOf` input -> cmdError input
             | otherwise                     -> cmdExpr input
         `GHC.gcatch`
@@ -308,16 +311,28 @@ cmdLineCmd input = do
 cmdUpdateAccessMode :: String -> DaisonI ()
 cmdUpdateAccessMode input = do
     let arg = removeCmd input
-    let mode = readAccessMode arg
-    case mode of
+    let accessMode = readAccessMode arg
+    case accessMode of
         Just m -> do
             modifyState (\s -> s { mode = m })
-            GHC.liftIO $ print $ "AccessMode successfully updated to " ++ arg
+            newState <- getState
+            printText $ "Access mode successfully updated to " ++ (show . mode) newState
             loop
         Nothing -> do
-            GHC.liftIO $ print $ "AccessMode failed to update, " ++ arg ++ " is not a valid AccessMode"
+            state <- getState
+            printText $ "Current access mode: " ++ (show . mode) state
             loop
 
+readAccessMode :: String -> Maybe AccessMode
+readAccessMode arg
+    | "READWRITE" `isPrefixOf` argUpper = Just ReadWriteMode
+    | "RW" == argUpper                  = Just ReadWriteMode
+    | "R+" == argUpper                  = Just ReadWriteMode
+    | "READONLY"  `isPrefixOf` argUpper = Just ReadOnlyMode
+    | "R" == argUpper                   = Just ReadOnlyMode
+    | null arg                        = Nothing
+    | otherwise                         = GHC.throw (InvalidAccessMode arg)
+    where argUpper = map toUpper arg
 
 
 -- | Interact with the log file:
