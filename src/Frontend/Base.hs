@@ -117,7 +117,7 @@ instance Show DaisonIError where
     show NoOpenDB = "No open database found. Try :open <name>"
     show NoSuchDir = "No such directory"
     show (InvalidAccessMode arg) = arg ++ " is not a valid AccessMode"
-    show (UnknownCmd cmd) = "Unknown command " ++ cmd
+    show (UnknownCmd cmd) = "Command " ++ cmd ++ " either does not exist or expects an argument. Try :?"
 
 instance E.Exception DaisonIError
 
