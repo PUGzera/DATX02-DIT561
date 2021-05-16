@@ -73,6 +73,7 @@ loop = do
         Just ":?"    -> cmdPrintHelp
         Just ":help" -> cmdPrintHelp
         Just ":dbs"  -> cmdListOpenDBs
+        Just ":mode" -> cmdUpdateAccessMode ":mode"
         Just ":q"    -> cmdQuit
         Just ":quit" -> cmdQuit
         Just input
@@ -88,16 +89,15 @@ loop = do
             | ":type "   `isPrefixOf` input -> cmdType input
             | ":t "      `isPrefixOf` input -> cmdType input
 
-            | ":module "  `isPrefixOf` input -> cmdModule input
-            | ":m "       `isPrefixOf` input -> cmdModule input
+            | ":module " `isPrefixOf` input -> cmdModule input
+            | ":m "      `isPrefixOf` input -> cmdModule input
 
             | ":cd "     `isPrefixOf` input -> cmdCd input
             | ":set "    `isPrefixOf` input -> cmdSet input
-            | ":mode "    `isPrefixOf` input -> cmdUpdateAccessMode input
-            | ":mode"    ==           input -> cmdUpdateAccessMode input
+            | ":mode "   `isPrefixOf` input -> cmdUpdateAccessMode input
 
             | ":log "    `isPrefixOf` input -> cmdLog input
-            | ":! "       `isPrefixOf` input -> cmdLineCmd input
+            | ":! "      `isPrefixOf` input -> cmdLineCmd input
             | ":"        `isPrefixOf` input -> cmdError input
             | otherwise                     -> cmdExpr input
         `GHC.gcatch`

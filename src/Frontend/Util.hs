@@ -65,10 +65,10 @@ helpText =
     "   -- Commands for working with databases:\n" ++
     "\n" ++
     "   :close <name>       Close database with <name> if opened\n" ++
-    "   :mode [mode]        Set access mode: either ReadWrite or" ++
-    "                       ReadOnly." ++
-    "                       Displays the current access mode if no" ++
-    "                       argument is given." ++
+    "   :mode [mode]        Set access mode: either ReadWrite or\n" ++
+    "                       ReadOnly.\n" ++
+    "                       Displays the current access mode if no\n" ++
+    "                       argument is given.\n" ++
     "   :open <name>        Open database with <name> or set focus to \n" ++
     "                       database with <name> if already open.\n" ++
     "                       This command creates a database with <name>\n" ++
