@@ -22,9 +22,9 @@ The purpose of the project is to study how the compiler GHC can be used as a lib
     - [`Run.hs`](src/Frontend/Run.hs) - Loop of the program and definitions of commands that can be run
     - [`Typecheck.hs`](src/Frontend/Typecheck.hs) - Typecheck user input to decide how to handle it.
 
-- [`test/`](test) - Contains automated tests for the program
-  - [`Tests.hs`](test/Tests.hs) - Functional tests run with [QuickCheck](https://hackage.haskell.org/package/QuickCheck)
-  - [`UnitTests.hs`](test/UnitTests.hs) - Unit tests run with [HUnit](https://hackage.haskell.org/package/HUnit)
+- [`tests/`](tests) - Contains automated tests for the program
+  - [`Tests.hs`](tests/Tests.hs) - Functional tests run with [QuickCheck](https://hackage.haskell.org/package/QuickCheck)
+  - [`UnitTests.hs`](tests/UnitTests.hs) - Unit tests run with [HUnit](https://hackage.haskell.org/package/HUnit)
 
 ## Running the application
 We used Cabal to automate dependency installations, building as well as testing the project. Run the following commands from the source folder:
@@ -36,10 +36,47 @@ We used Cabal to automate dependency installations, building as well as testing 
 `cabal test`
 
 ### Build executable
-`cabal build executable:daison-frontend`
+`cabal build exe:daison-frontend`
+
+#### Get a simple binary in the folder dist/
+`cabal install exe:daison-frontend --install-method=copy --overwrite-policy=always --installdir=dist`
 
 ## Example usage
-*Todo*
+1. Start the program
+
+  `~$ daison-frontend`
+
+2. Open a database
+
+  `:open database.db`
+
+3. Load a local file with table and type definitions (`people :: Table Person`, `Person :: Person { name :: String, age   :: Int}`)
+
+  `:load People.hs`
+
+4. Create a table which is defined in People.hs
+
+  `tryCreateTable people`
+
+5. Read all entries in the people table
+
+  `select [x | x <- from people everything]`
+
+6. Insert a new person into the table people
+
+  `insert people $ return $ Person "Alice" 15`
+
+7. Update her age
+
+  ```haskell
+  let pkey = fst it
+  update people [(pkey, person{age=25}) | person <- from people (at pkey)]
+  ```
+
+8. Close the program
+
+  `:quit`
+
 ### Available commands
 | Command            | Description                                                            |
 | ------------------ | ---------------------------------------------------------------------- |
