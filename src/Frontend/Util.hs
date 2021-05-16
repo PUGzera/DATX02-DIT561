@@ -59,15 +59,20 @@ helpText =
     "        wipe           Attempt to wipe the log file's contents\n" ++
     "   :type <expr>        Show the type of <expr>\n" ++
     "   :quit, :q           Quit the program\n" ++
+    "   :! <command>        Run the shell command <command>" ++
 
     "\n\n" ++
     "   -- Commands for working with databases:\n" ++
     "\n" ++
+    "   :close <name>       Close database with <name> if opened\n" ++
+    "   :mode [mode]        Set access mode: either ReadWrite or\n" ++
+    "                       ReadOnly.\n" ++
+    "                       Displays the current access mode if no\n" ++
+    "                       argument is given.\n" ++
     "   :open <name>        Open database with <name> or set focus to \n" ++
     "                       database with <name> if already open.\n" ++
     "                       This command creates a database with <name>\n" ++
     "                       if it doesn't exist.\n" ++
-    "   :close <name>       Close database with <name> if opened\n" ++
 
     "\n\n" ++
     "   -- Commands for utility:\n" ++
