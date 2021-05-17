@@ -53,7 +53,7 @@ createTable tType = tableName ++ " = table \"" ++ tableName ++ "\" :: Table " ++
 -- | Create a temporary file given a test label and a file extension.
 mkTempFileName :: String -> String -> String
 mkTempFileName label ext
-    | ext == ".db" = "test/" ++ base
+    | ext == ".db" = "tests/" ++ base
     | otherwise    = base
     where
         base = "temp_" ++ label ++ ext
@@ -67,7 +67,7 @@ openDB' label = do
 
 -- | Create a temporary text file in the test folder given a test label.
 openTempFile' :: String -> IO (FilePath, Handle)
-openTempFile' label = openTempFile "test" $ mkTempFileName label ".txt"
+openTempFile' label = openTempFile "tests" $ mkTempFileName label ".txt"
 
 -- | Run the front-end and simulate user input. Does not print to the
 --   console. Returns a file name whose contents depends on input_test.

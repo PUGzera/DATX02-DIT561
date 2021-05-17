@@ -11,6 +11,7 @@ import System.Directory
 folderName = "Daison-Frontend"
 logName = ".daison_history"
 
+main :: IO ()
 main = do
     dataPath <- getAppUserDataDirectory folderName
     createDirectoryIfMissing True dataPath
