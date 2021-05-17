@@ -18,7 +18,7 @@ import System.Exit
 
 --  Test data types
 
-data Person = Person {name :: String, age :: Int} deriving (Data, Show)
+data Person = Person {name :: String, age :: Int} deriving (Data, Show, Eq)
 instance Arbitrary Person where
     arbitrary = applyArbitrary2 $ \s i -> Person s i
 
@@ -69,16 +69,31 @@ openDB' label = do
 openTempFile' :: String -> IO (FilePath, Handle)
 openTempFile' label = openTempFile "test" $ mkTempFileName label ".txt"
 
+-- | Run the front-end and simulate user input. Does not print to the
+--   console. Returns a file name whose contents depends on input_test.
+runSilent :: String -> IO (IORef [String])  -> IO FilePath
+runSilent testLabel input_test = do
+    stdoutCopy <- hDuplicate stdout
+    (fp, fh) <- openTempFile' testLabel
+    hDuplicateTo fh stdout
+    cmds <- input_test
+    run Nothing $ getNextInput cmds
+    hDuplicateTo stdoutCopy stdout
+    hClose fh
+    return fp
+
 -- Test labels
 
 readFromDatabase :: String
 readFromDatabase = "readFromDatabase"
 
+writeToDatabase :: String
+writeToDatabase = "writeToDatabase"
 
 -- Test input commands
 
 -- | Read items from a pre-existing database.
-input_readFromDatabase ::  String -> [String] ->  IO (IORef [String])
+input_readFromDatabase ::  String -> [String] -> IO (IORef [String])
 input_readFromDatabase tableName inputCode = newIORef $ 
     (":open " ++ mkTempFileName readFromDatabase ".db") : inputCode
     ++ [
@@ -87,10 +102,21 @@ input_readFromDatabase tableName inputCode = newIORef $
     ":q"
     ]
 
+-- | Write items to a new database.
+--   Assumes that (show a) can be used to define a value of type a
+input_writeToDatabase :: (Arbitrary a, Data a, Show a, Eq a) => String -> [String] -> [a] -> IO (IORef [String])
+input_writeToDatabase tableName inputCode testData = newIORef $ 
+    (":open " ++ mkTempFileName writeToDatabase ".db") : inputCode
+    ++ [
+    "createTable " ++ tableName,
+    "mapM_ (insert_ " ++ tableName ++ ") " ++ show testData,
+    ":q"
+    ]
+
 -- Tests
 
 -- | Check if the front-end can read from a database.
-prop_readFromDatabase :: (Arbitrary a, Data a, Show a) => Table a -> [String] ->  [a] -> Property
+prop_readFromDatabase :: (Arbitrary a, Data a, Show a, Eq a) => Table a -> [String] -> [a] -> Property
 prop_readFromDatabase testTable' inputCode testData = ioProperty $ do
     -- Write and retrieve data using the back-end
     (dbFp, db) <- openDB' readFromDatabase
@@ -101,27 +127,43 @@ prop_readFromDatabase testTable' inputCode testData = ioProperty $ do
         select [x | (_key,x) <- from testTable' everything]
     closeDB db
 
-    -- Retrieve data using the front-end
-    stdoutCopy <- hDuplicate stdout
-    (fp, fh) <- openTempFile' readFromDatabase
-    hDuplicateTo fh stdout
-    cmds <- input_readFromDatabase tableName inputCode
-    run Nothing $ getNextInput cmds
-    hDuplicateTo stdoutCopy stdout
-    hClose fh
+    -- Read data using the front-end
+    fp <- runSilent readFromDatabase $ input_readFromDatabase tableName inputCode
 
     output <- readFile fp
     let outputLines = lines output
     let res = outputLines !! (length outputLines - 2)
 
     -- Clean up
-    --removeFile fp
+    removeFile fp
     removeFile dbFp
 
     let success = res == show ref
     unless success $ do
-        print $ "Res: " ++ res
-        print $ "Ref: " ++ show ref
+        print $ "Expected: " ++ show ref
+        print $ "Actual:   " ++ res
+        
+    return success
+
+-- | Check if the front-end can read from a database.
+prop_writeToDatabase :: (Arbitrary a, Data a, Show a, Eq a) => Table a -> [String] -> [a] -> Property
+prop_writeToDatabase testTable' inputCode testData = ioProperty $ do
+    -- Write data using the front-end
+    fp <- runSilent writeToDatabase $ input_writeToDatabase tableName inputCode testData
+
+    -- Read data using the back-end
+    (dbFp, db) <- openDB' writeToDatabase
+    res <- runDaison db ReadWriteMode $ select [x | (_key,x) <- from testTable' everything]
+    closeDB db
+
+    -- Clean up
+    removeFile fp
+    removeFile dbFp
+
+    let success = res == testData
+    unless success $ do
+        print $ "Expected: " ++ show testData
+        print $ "Actual:   " ++ show res
         
     return success
 
@@ -131,7 +173,7 @@ tDoubless = testTable :: Table [Double]
 tTuples = testTable :: Table (Bool, Int)
 tChars = testTable :: Table Char
 
-iCPerson = ["data Person = Person {name :: String, age :: Int} deriving (Data, Show)",
+iCPerson = ["data Person = Person {name :: String, age :: Int} deriving (Data, Show, Eq)",
             createTable "Person"
            ]
 iCDoubless = [createTable "[Double]"]
@@ -140,6 +182,7 @@ iCChars = [createTable "Char"]
 
 main :: IO ()
 main = do
+    -- Read using the front-end
     print "Reading from database with table :: Table Person"
     res11 <- quickCheckWithResult stdArgs $ prop_readFromDatabase tPerson iCPerson
     print "Reading from database with table :: Table [Double]"
@@ -149,6 +192,17 @@ main = do
     print "Reading from database with table :: Table Char"
     res14 <- quickCheckWithResult stdArgs $ prop_readFromDatabase tChars iCChars
 
-    let tests = [res11, res12, res13, res14]
+    -- Write using the front-end
+    print "Writing to database with table :: Table Person"
+    res21 <- quickCheckWithResult stdArgs $ prop_writeToDatabase tPerson iCPerson
+    print "Writing to database with table :: Table [Double]"
+    res22 <- quickCheckWithResult stdArgs $ prop_writeToDatabase tDoubless iCDoubless
+    print "Writing to database with table :: Table (Bool, Int)"
+    res23 <- quickCheckWithResult stdArgs $ prop_writeToDatabase tTuples iCTuples
+    print "Writing to database with table :: Table Char"
+    res24 <- quickCheckWithResult stdArgs $ prop_writeToDatabase tChars iCChars
+
+    let tests = [res11, res12, res13, res14,
+                 res21, res22, res23, res24]
 
     unless (all isSuccess tests) exitFailure
