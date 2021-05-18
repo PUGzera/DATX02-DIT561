@@ -1,0 +1,127 @@
+name: Release
+
+on:
+    # Trigger the workflow on the new 'v*' tag created
+    push:
+        tags:
+            - "v*"
+
+jobs:
+    create_release:
+        name: Create Github Release
+        runs-on: ubuntu-latest
+        steps:
+            - name: Check out code
+              uses: actions/checkout@v2
+
+            - name: Create Release
+              id: create_release
+              uses: actions/create-release@v1.1.1
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              with:
+                  tag_name: ${{ github.ref }}
+                  release_name: Release ${{ github.ref }}
+                  draft: true
+                  prerelease: false
+
+            - name: Output Release URL File
+              run: echo "${{ steps.create_release.outputs.upload_url }}" > release_url.txt
+            - name: Save Release URL File for publish
+              uses: actions/upload-artifact@v1
+              with:
+                  name: release_url
+                  path: release_url.txt
+
+    build_artifact:
+        needs: [create_release]
+        name: ${{ matrix.os }}/GHC ${{ matrix.ghc }}/${{ github.ref }}
+        runs-on: ${{ matrix.os }}
+        strategy:
+            matrix:
+                os: [ubuntu-latest, macOS-latest]
+                ghc:
+                    - "8.10.4"
+                cabal: ["3.2"]
+
+        steps:
+            - name: Check out code
+              uses: actions/checkout@v2
+
+            - name: Set tag name
+              uses: olegtarasov/get-tag@v2.1
+              id: tag
+              with:
+                  tagRegex: "v(.*)"
+
+            - name: Setup Haskell
+              uses: haskell/actions/setup@v1
+              id: setup-haskell-cabal
+              with:
+                  ghc-version: ${{ matrix.ghc }}
+                  cabal-version: ${{ matrix.cabal }}
+
+            - uses: actions/cache@v1
+              name: Cache ~/.cabal/store
+              with:
+                  path: ${{ steps.setup-haskell-cabal.outputs.cabal-store }}
+                  key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/*.cabal') }}-${{ hashFiles('**/cabal.project') }}
+                  restore-keys: |
+                      ${{ runner.os }}-build-${{ env.cache-name }}-
+                      ${{ runner.os }}-build-
+                      ${{ runner.os }}-
+
+            - name: Install dependencies
+              run: |
+                  cabal update
+                  git clone https://github.com/krangelov/daison.git
+                  cd daison
+                  echo "package daison" > cabal.project.local
+                  echo "  extra-include-dirs: $GITHUB_WORKSPACE/daison/c" >> cabal.project.local
+                  cabal install --lib
+                  cd ..
+                  echo "packages: daison" > cabal.project.local
+                  cabal build --only-dependencies --enable-tests --enable-benchmarks
+
+            - name: Build binary
+              id: build_step
+              run: |
+                  mkdir dist
+                  cabal build exe:daison-frontend
+                  find . -name daison-frontend | tail -n 1
+                  echo "::set-output name=filepath::$(find . -name daison-frontend | tail -n 1)"
+
+            - if: matrix.os == 'windows-latest'
+              name: Set extension to .exe on Windows
+              run: echo "EXT=.exe" >> $GITHUB_ENV
+
+            - name: Set binary path name
+              run: |
+                  echo "path ${{ steps.build_step.outputs.filepath }}"
+                  echo "BINARY_PATH=${{ steps.build_step.outputs.filepath }}${{ env.EXT }}" >> $GITHUB_ENV
+
+            - name: Compress binary
+              uses: svenstaro/upx-action@2.0.1
+              with:
+                  file: ${{ env.BINARY_PATH }}
+
+            - name: Load Release URL File from release job
+              uses: actions/download-artifact@v1
+              with:
+                  name: release_url
+
+            - name: Get Release File Name & Upload URL
+              id: get_release_info
+              run: |
+                  echo "::set-output name=upload_url::$(cat release_url/release_url.txt)"
+
+            - name: Upload Release Asset
+              id: upload-release-asset
+              uses: actions/upload-release-asset@v1.0.1
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              with:
+                  upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+                  asset_path: ${{ env.BINARY_PATH }}
+                  asset_name: daison-frontend-${{ steps.tag.outputs.tag }}-${{ runner.os }}-ghc-${{ matrix.ghc }}${{ env.EXT }}
+                  asset_content_type: application/octet-stream
