@@ -41,23 +41,25 @@ We used Cabal to automate dependency installations, building as well as testing 
 ## Example usage
 *Todo*
 ### Available commands
-| Command             | Description                                                            |
-| ------------------- | ---------------------------------------------------------------------- |
-| `<statement>`       | evaluate/run `<statement>`                                             |
-| :dbs                | print the list of databases that are currently open                    |
-| :?, :help           | display this list of commands                                          |
-| :log path           | display the log file's path                                            |
-| :log show           | display the log file's contents                                        |
-| :log toggle         | enable/disable logging                                                 |
-| :log wipe           | attempt to wipe the log file's contents                                |
-| :t `<expr>`         | show the type of `<expr>`                                              |
-| :q, :quit           | quit the program                                                       |
-| :close `<name>`     | close database with `<name>` if opened                                 |
-| :db, :open `<name>` | open database with `<name>` or set focus to `<name>` if already opened |
-| :cd `<dir>`         | set the current directory to `<dir>` (relative to current location)    |
-| :m `<module>`       | import `<module>` if it exists and is in scope                         |
-| :l `<filepath>`     | load a haskell file from `<filepath>`                                  |
-| :set `<option>`     | set `<option>`                                                         |
+| Command            | Description                                                            |
+| ------------------ | ---------------------------------------------------------------------- |
+| `<statement>`      | evaluate/run `<statement>`                                             |
+| :dbs               | print the list of databases that are currently open                    |
+| :?, :help          | display this list of commands                                          |
+| :log path          | display the log file's path                                            |
+| :log show          | display the log file's contents                                        |
+| :log toggle        | enable/disable logging                                                 |
+| :log wipe          | attempt to wipe the log file's contents                                |
+| :type `<expr>`     | show the type of `<expr>`                                              |
+| :q, :quit          | quit the program                                                       |
+| :! `<command>`     | run the shell command `<command>`                                      |
+| :close `<name>`    | close database with `<name>` if opened                                 |
+| :mode `[mode]`     | set access mode to `[mode]` if provided; displays the current access mode otherwise  |
+| :open `<name>`     | open database with `<name>` or set focus to `<name>` if already opened |
+| :cd `<dir>`        | set the current directory to `<dir>` (relative to current location)    |
+| :module `<module>` | import `<module>` if it exists and is in scope                         |
+| :load `<filepath>` | load a haskell file from `<filepath>`                                  |
+| :set `<option>`    | set GHC `<option>`                                                     |
 ## Authors
 
 | Name                      | GitHub-handle                                     |

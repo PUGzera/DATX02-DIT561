@@ -185,7 +185,7 @@ unDaisonI ds = fst $ unsafePerformIO $ runGhc emptyState (do initSession'; ds)
 --   "Loaded package environment from ..." message.
 initSession' :: DaisonI ()
 initSession' = do
-    (fp, fh) <- GHC.liftIO $ openTempFile "test" "stderr.txt"
+    (fp, fh) <- GHC.liftIO $ openTempFile "tests" "stderr.txt"
     stderrCopy <- GHC.liftIO $ hDuplicate stderr
     GHC.liftIO $ hDuplicateTo fh stderr
     initSession

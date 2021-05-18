@@ -11,15 +11,18 @@ import Frontend.Context
 import Frontend.Eval
 import Frontend.Typecheck
 import Frontend.Util
-import System.Directory (doesDirectoryExist, doesFileExist)
+
+import Database.Daison (AccessMode(..))
 
 import qualified System.IO as SIO
+import System.Console.GetOpt
 import System.Environment (getArgs)
 import System.Directory (getCurrentDirectory, doesFileExist)
-import System.Console.GetOpt
+import System.Process (callCommand)
 
 import Control.Concurrent (myThreadId)
 import Control.Monad (replicateM_, unless)
+import Data.Char (toUpper)
 import Data.Maybe (fromMaybe)
 import Data.List (isPrefixOf, isSuffixOf)
 
@@ -42,7 +45,8 @@ run logFilePath input = do
     runGhc state $ do
         initSession
         printText welcomeMsg
-        setStartupArgs `GHC.gfinally` exit
+        setStartupArgs 
+        loop `GHC.gfinally` exit
     return ()
 
 {- Within the session:
@@ -70,11 +74,10 @@ loop = do
         Just ":?"    -> cmdPrintHelp
         Just ":help" -> cmdPrintHelp
         Just ":dbs"  -> cmdListOpenDBs
+        Just ":mode" -> cmdUpdateAccessMode ":mode"
         Just ":q"    -> cmdQuit
         Just ":quit" -> cmdQuit
         Just input
-            | ":db "     `isPrefixOf` input -> cmdOpen input
-
             | ":open "   `isPrefixOf` input -> cmdOpen input
             | ":o "      `isPrefixOf` input -> cmdOpen input
 
@@ -87,13 +90,15 @@ loop = do
             | ":type "   `isPrefixOf` input -> cmdType input
             | ":t "      `isPrefixOf` input -> cmdType input
 
-            | ":module "  `isPrefixOf` input -> cmdModule input
-            | ":m "       `isPrefixOf` input -> cmdModule input
+            | ":module " `isPrefixOf` input -> cmdModule input
+            | ":m "      `isPrefixOf` input -> cmdModule input
 
             | ":cd "     `isPrefixOf` input -> cmdCd input
             | ":set "    `isPrefixOf` input -> cmdSet input
+            | ":mode "   `isPrefixOf` input -> cmdUpdateAccessMode input
 
             | ":log "    `isPrefixOf` input -> cmdLog input
+            | ":! "      `isPrefixOf` input -> cmdLineCmd input
             | ":"        `isPrefixOf` input -> cmdError input
             | otherwise                     -> cmdExpr input
         `GHC.gcatch`
@@ -170,7 +175,6 @@ setStartupArgs = do
     unless (null databaseArgs) $ do
         printText $ "Setting open databases from arguments - " ++ unwords databaseArgs
         mapM_ openDb databaseArgs
-    loop
 
 getFirstHaskellFileArg :: [String] -> String
 getFirstHaskellFileArg args = do
@@ -259,31 +263,32 @@ cmdImport input = do
 -- Needs to define a module.
 loadFile :: String -> DaisonI ()
 loadFile input = do
-    de <- GHC.liftIO $ doesDirectoryExist input
-    fe <- GHC.liftIO $ doesFileExist input
-    if de || not fe then
-        printText "Input is not a valid/existing file"
-    else do
         state <- getState
         let cdir = currentDirectory state
         let filePath = cdir ++ "/" ++ input
-        target <- liftGhc $ GHC.guessTarget filePath Nothing
-        case GHC.targetId target of
-            (GHC.TargetFile fp _) -> do
-                closeDBs
-                exists <- GHC.liftIO $ doesFileExist filePath
-                if not exists
-                    then printText $ "File " ++ filePath ++ " not found"
-                    else do
+        (id, target) <- (do {
+            t <- liftGhc $ GHC.guessTarget filePath Nothing;
+            return (GHC.targetId t, Just t)
+        }) `GHC.gcatch` (\e -> do {
+            return (e :: GHC.SomeException); --Casting, might exist a better solution as this is tricking the type system
+            return $ (GHC.TargetFile "" Nothing, Nothing)
+        })
+        case target of
+            Just target' -> do
+                case id of
+                    (GHC.TargetFile fp _) -> do
+                        closeDBs
+                        exists <- GHC.liftIO $ doesFileExist filePath
                         cm <- liftGhc $ GHC.compileToCoreModule fp
                         let mName = GHC.moduleNameString $ GHC.moduleName $ GHC.cm_module cm
-                        liftGhc $ GHC.setTargets [target]
+                        liftGhc $ GHC.setTargets [target']
                         res <- liftGhc $ GHC.load GHC.LoadAllTargets
                         m <- liftGhc $ GHC.findModule (GHC.mkModuleName mName) Nothing
                         addImport (makeIIDecl $ GHC.moduleName m)
                         runExpr sDefineOpenDBs
                         reopenDBs
                         printText $ "Loaded " ++ filePath
+            Nothing -> printText $ "Input is not a valid/existing file"
 
 cmdModule :: String -> DaisonI ()
 cmdModule input = do
@@ -296,6 +301,39 @@ cmdType input = do
     t <- exprType arg
     GHC.liftIO $ putStrLn $ arg ++ " :: " ++ t
     loop
+
+cmdLineCmd :: String -> DaisonI ()
+cmdLineCmd input = do
+    let arg = removeCmd input
+    GHC.liftIO $ callCommand arg
+    loop
+
+cmdUpdateAccessMode :: String -> DaisonI ()
+cmdUpdateAccessMode input = do
+    let arg = removeCmd input
+    let accessMode = readAccessMode arg
+    case accessMode of
+        Just m -> do
+            modifyState (\s -> s { mode = m })
+            newState <- getState
+            printText $ "Access mode successfully updated to " ++ (show . mode) newState
+            loop
+        Nothing -> do
+            state <- getState
+            printText $ "Current access mode: " ++ (show . mode) state
+            loop
+
+readAccessMode :: String -> Maybe AccessMode
+readAccessMode arg
+    | "READWRITE" `isPrefixOf` argUpper = Just ReadWriteMode
+    | "RW" == argUpper                  = Just ReadWriteMode
+    | "R+" == argUpper                  = Just ReadWriteMode
+    | "READONLY"  `isPrefixOf` argUpper = Just ReadOnlyMode
+    | "R" == argUpper                   = Just ReadOnlyMode
+    | null arg                        = Nothing
+    | otherwise                         = GHC.throw (InvalidAccessMode arg)
+    where argUpper = map toUpper arg
+
 
 -- | Interact with the log file:
 --   :log path   => display the log file's path

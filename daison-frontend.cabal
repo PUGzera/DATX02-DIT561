@@ -18,16 +18,16 @@ package-url:         https://github.com/PUGzera/DATX02-DIT561
 
 test-suite tests
   type:                exitcode-stdio-1.0
-  hs-source-dirs:      test
+  hs-source-dirs:      tests
   main-is:             Tests.hs
   build-depends:       daison-frontend-internal-library,
                        base >=4.12,
                        daison >=0.1,
-                       directory>= 1.3.3.0, 
-                       ghc >= 8.6 && < 9, 
-                       ghc-boot >=8.6.5, 
-                       ghc-paths >=0.1 && <0.2, 
-                       process >=1.6.5.0, 
+                       directory>= 1.3.3.0,
+                       ghc >= 8.6 && < 9,
+                       ghc-boot >=8.6.5,
+                       ghc-paths >=0.1 && <0.2,
+                       process >=1.6.5.0,
                        split,
                        QuickCheck
   default-language:    Haskell2010
@@ -45,17 +45,17 @@ executable daison-frontend
                        Frontend.Run
                        Frontend.Util
                        Paths_daison_frontend
-  -- other-extensions:    
-  build-depends:       base >=4.12, 
-                       daison >=0.1, 
-                       ghc >= 8.6 && < 9, 
-                       ghc-paths >=0.1 && <0.2, 
-                       ghc-boot >=8.6.5, process >=1.6.5.0, 
-                       haskeline >=0.8.0.0, 
-                       directory>= 1.3.3.0, 
+  -- other-extensions:
+  build-depends:       base >=4.12,
+                       daison >=0.1,
+                       ghc >= 8.6 && < 9,
+                       ghc-paths >=0.1 && <0.2,
+                       ghc-boot >=8.6.5, process >=1.6.5.0,
+                       haskeline >=0.8.0.0,
+                       directory>= 1.3.3.0,
                        split
   if !os(windows)
-    build-depends:     unix >= 2.7.2.2 
+    build-depends:     unix >= 2.7.2.2
   hs-source-dirs:      src
   if os(windows)
     ghc-options:       -dynamic
@@ -65,11 +65,11 @@ executable daison-frontend
 
 test-suite unit-tests
   type:                exitcode-stdio-1.0
-  hs-source-dirs:      test
+  hs-source-dirs:      tests
   main-is:             UnitTests.hs
   build-depends:       daison-frontend-internal-library,
-                       base >= 4.12, 
-                       directory >= 1.3.3.0, 
+                       base >= 4.12,
+                       directory >= 1.3.3.0,
                        HUnit
   default-language:    Haskell2010
   ghc-options:         -dynamic
@@ -87,10 +87,10 @@ library daison-frontend-internal-library
                        Frontend.Run
                        Frontend.Util
                        Paths_daison_frontend
-  -- other-extensions:    
+  -- other-extensions:
   build-depends:       base >=4.12, daison >=0.1, ghc >= 8.6 && < 9, ghc-paths >=0.1 && <0.2, ghc-boot >=8.6.5, process >=1.6.5.0, haskeline >=0.8.0.0, directory>= 1.3.3.0, split
   if !os(windows)
-    build-depends:     unix >= 2.7.2.2 
+    build-depends:     unix >= 2.7.2.2
   hs-source-dirs:      src
   default-language:    Haskell2010
   ghc-options:         -dynamic
