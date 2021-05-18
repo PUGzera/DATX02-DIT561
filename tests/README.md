@@ -16,7 +16,7 @@ The requirements are tested in the following specifications:
 | R2          | [**F2**](specs/F2.md)                          |
 | R3          | [**F2**](specs/F2.md)                          |
 | R4          | [**F3**](specs/F3.md)                          |
-| R5          | Inferred from R2                               |
+| R5          | [**F2**](specs/F2.md)                          |
 | R6          | [**F8**](specs/F8.md)                          |
 | R7          | [**F8**](specs/F8.md)                          |
 | R8*         | [**F11**](specs/F11.md)                        |
