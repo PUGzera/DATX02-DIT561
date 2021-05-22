@@ -100,6 +100,7 @@ loop = do
             | ":log "    `isPrefixOf` input -> cmdLog input
             | ":! "      `isPrefixOf` input -> cmdLineCmd input
             | ":"        `isPrefixOf` input -> cmdError input
+
             | otherwise                     -> cmdExpr input
         `GHC.gcatch`
             handleError state
@@ -128,6 +129,15 @@ reopenDBs = do
     mapM_ openAndAddDB (openDBs state)
     runExpr . sOpenDB . fromMaybe "" $ activeDB state
     return ()
+
+-- | Sets current directory to working directory prior to session reset
+reSetCd :: DaisonI ()
+reSetCd = do
+    st <- getState
+    runExpr $ "setCurrentDirectory \"" ++ currentDirectory st ++ "\""
+    loop
+
+
 
 getPrompt :: DaisonState -> String
 getPrompt state =
@@ -287,6 +297,7 @@ loadFile input = do
                         addImport (makeIIDecl $ GHC.moduleName m)
                         runExpr sDefineOpenDBs
                         reopenDBs
+                        reSetCd
                         printText $ "Loaded " ++ filePath
             Nothing -> printText $ "Input is not a valid/existing file"
 
