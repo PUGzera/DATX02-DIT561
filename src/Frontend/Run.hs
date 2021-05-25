@@ -213,26 +213,19 @@ setExtensions newExtensions = do
 cmdCd :: String -> DaisonI ()
 cmdCd input = do
     case words input of
-       [_] -> do
-            GHC.liftIO $ print "This command expects an argument"
-            loop
-       _ -> do
-            let arg = removeDoubleQuotes $ words input !! 1
-
-            cd arg
-            st <- getState
-            runExpr $ "setCurrentDirectory \"" ++ currentDirectory st ++ "\""
-            loop
+       [_]  -> printText "This command expects an argument"
+       _    -> do
+                let arg = removeDoubleQuotes $ words input !! 1
+                cd arg
+                reSetCd
+    loop
 
 cmdOpen :: String -> DaisonI ()
 cmdOpen input = do
     case words input of
-       [_] -> do
-            GHC.liftIO $ print "This command expects an argument"
-            loop
-       _ -> do
-            openDb $ words input !! 1
-            loop
+       [_]  -> printText "This command expects an argument"
+       _    -> openDb $ words input !! 1
+    loop
 
 -- | Opens a database within the session and marks it as active,
 --   while keeping track of other open databases.
