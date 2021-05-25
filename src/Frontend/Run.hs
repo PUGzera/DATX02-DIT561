@@ -135,9 +135,7 @@ reSetCd :: DaisonI ()
 reSetCd = do
     st <- getState
     runExpr $ "setCurrentDirectory \"" ++ currentDirectory st ++ "\""
-    loop
-
-
+    return ()
 
 getPrompt :: DaisonState -> String
 getPrompt state =
