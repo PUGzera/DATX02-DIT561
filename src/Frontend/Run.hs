@@ -225,19 +225,14 @@ setExtensions newExtensions = do
 -- | Updates the current directory
 cmdCd :: String -> DaisonI ()
 cmdCd input = do
-    case words input of
-       [_]  -> GHC.throw MissingParameter
-       _    -> do
-                let arg = removeDoubleQuotes $ words input !! 1
-                cd arg
-                reSetCd
+    let arg = removeDoubleQuotes $ words input !! 1
+    cd arg
+    reSetCd
     loop
 
 cmdOpen :: String -> DaisonI ()
 cmdOpen input = do
-    case words input of
-       [_]  -> GHC.throw MissingParameter
-       _    -> openDb $ words input !! 1
+    openDb $ words input !! 1
     loop
 
 -- | Opens a database within the session and marks it as active,
