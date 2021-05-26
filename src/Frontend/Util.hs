@@ -34,7 +34,7 @@ cd s = do
     st <- getState
     let ud = cd' s $ winToUnix $ currentDirectory st
     id <- GHC.liftIO $ doesDirectoryExist ud
-    if id then 
+    if id then
         do modifyState (\st -> st { currentDirectory = ud } )
            GHC.liftIO $ putStrLn ("Working directory set to " ++ ud)
            return ()
@@ -65,8 +65,7 @@ helpText =
     "   -- Commands for working with databases:\n" ++
     "\n" ++
     "   :close <name>       Close database with <name> if opened\n" ++
-    "   :mode [mode]        Set access mode: either ReadWrite or\n" ++
-    "                       ReadOnly.\n" ++
+    "   :mode [mode]        Set access mode (`ReadWrite` or `ReadOnly`)\n" ++
     "                       Displays the current access mode if no\n" ++
     "                       argument is given.\n" ++
     "   :open <name>        Open database with <name> or set focus to \n" ++
@@ -84,8 +83,8 @@ helpText =
 
 welcomeMsg = "Daison-Frontend, version " ++
                 showVersion version ++
-                "  :? for help\n" ++
+                "  :? for help\n\n" ++
              "Note: A log of user input is kept in order to enable arrow key navigation.\n" ++
-             "      Use the help command for more information."
+             "      Use the help command for more information.\n"
 
 exitMsg = "Leaving Daison-Frontend. Connections to open databases will be closed."
