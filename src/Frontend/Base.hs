@@ -46,8 +46,11 @@ data DaisonIError = DBNotOpen
                   | NoLogFile
                   | NoOpenDB
                   | NoSuchDir
+                  | NoSuchFile
                   | InvalidAccessMode String
+                  | UnknownFlag String
                   | UnknownCmd String
+                  | MissingParameter
                       deriving Typeable
 
 -- | Represents an empty state with nothing set.
@@ -116,8 +119,11 @@ instance Show DaisonIError where
     show NoLogFile = "No log file detected"
     show NoOpenDB = "No open database found. Try :open <name>"
     show NoSuchDir = "No such directory"
-    show (InvalidAccessMode arg) = arg ++ " is not a valid AccessMode"
-    show (UnknownCmd cmd) = "Command " ++ cmd ++ " either does not exist or expects an argument. Try :?"
+    show NoSuchFile = "No such file"
+    show (InvalidAccessMode arg) = arg ++ " is not a valid access mode\nUse :? for help."
+    show (UnknownFlag flag) = "Unknown flag '" ++ flag ++ "'"
+    show (UnknownCmd cmd) = "Unknown command '" ++ cmd ++ "'\nUse :? for help."
+    show (MissingParameter) = "Missing parameter\nUse :? for help."
 
 instance E.Exception DaisonIError
 
