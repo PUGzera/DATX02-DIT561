@@ -69,6 +69,9 @@ loop = do
 
     res <- GHC.liftIO $ input state (logInput state) $ getPrompt state
     case res of
+        -- Note: Another way to do this would be to make a list of tuples,
+        -- [(String,String -> DaisonI ())], and lookup the command name.
+        -- Thus, the following lines of code could be greatly reduced.
         Nothing      -> cmdQuit
         Just ""      -> loop
         Just ":?"    -> cmdPrintHelp
