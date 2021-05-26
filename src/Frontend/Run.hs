@@ -187,12 +187,15 @@ setStartupArgs = do
     unless (null newFlags) $ do
         printText $ "Attempting to set flag(s): " ++ unwords newFlags
         setExtensions $ map (GHC.L GHC.noSrcSpan) newFlags
+        printText $ "Flag(s) set successfully.\n"
     unless (null haskellSourceFileArg) $ do
-        printText $ "Attempting to load file(s):" ++ haskellSourceFileArg
+        printText $ "Attempting to load file(s): " ++ haskellSourceFileArg
         loadFile haskellSourceFileArg
+        printText $ "File(s) loaded successfully.\n"
     unless (null databaseArgs) $ do
-        printText $ "Attempting to open database(s):" ++ unwords databaseArgs
+        printText $ "Attempting to open database(s): " ++ unwords databaseArgs
         mapM_ openDb databaseArgs
+        printText $ "Database(s) opened successfully.\n"
 
 getFirstHaskellFileArg :: [String] -> String
 getFirstHaskellFileArg args = do

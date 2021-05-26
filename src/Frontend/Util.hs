@@ -83,8 +83,8 @@ helpText =
 
 welcomeMsg = "Daison-Frontend, version " ++
                 showVersion version ++
-                "  :? for help\n" ++
+                "  :? for help\n\n" ++
              "Note: A log of user input is kept in order to enable arrow key navigation.\n" ++
-             "      Use the help command for more information."
+             "      Use the help command for more information.\n"
 
 exitMsg = "Leaving Daison-Frontend. Connections to open databases will be closed."
