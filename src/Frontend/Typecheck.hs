@@ -35,7 +35,7 @@ exprIsQuery expr = do
     where
         ignoredError = "_ IgnoredError"
         errorHandler :: GHC.SourceError -> DaisonI String
-        errorHandler e = 
+        errorHandler e =
             case Just e >>= isAssignmentError >>= possibleDeclaration of
                 Nothing -> return ignoredError
                 Just e  -> GHC.liftIO $ GHC.throwIO e
@@ -76,7 +76,7 @@ getExprCategory expr = do
 mToDaison :: String -> DaisonI String
 mToDaison stmt = do
         t <- exprType stmt
-        return $ "(" ++ stmt ++ ") :: " ++ (asDaison . removeTypeConstraint) t  
+        return $ "(" ++ stmt ++ ")"
         where
             asDaison ('m':t) = "Daison" ++ t
             asDaison t = t
@@ -94,4 +94,3 @@ typeToStr t = do
   dflags <- liftGhc GHC.getSessionDynFlags
   unqual <- liftGhc GHC.getPrintUnqual
   return $ GHC.showSDocForUser dflags unqual (GHC.pprTypeForUser t)
-  

@@ -18,7 +18,7 @@ import qualified System.IO as SIO
 import System.Console.GetOpt
 import System.Environment (getArgs)
 import System.Directory (getCurrentDirectory, doesFileExist)
-import System.Process (callCommand)
+import System.Process (readCreateProcess, shell, cwd)
 
 import Control.Concurrent (myThreadId)
 import Control.Monad (replicateM_, unless)
@@ -45,7 +45,7 @@ run logFilePath input = do
     runGhc state $ do
         initSession
         printText welcomeMsg
-        setStartupArgs 
+        setStartupArgs
         loop `GHC.gfinally` exit
     return ()
 
@@ -69,6 +69,9 @@ loop = do
 
     res <- GHC.liftIO $ input state (logInput state) $ getPrompt state
     case res of
+        -- Note: Another way to do this would be to make a list of tuples,
+        -- [(String,String -> DaisonI ())], and lookup the command name.
+        -- Thus, the following lines of code could be greatly reduced.
         Nothing      -> cmdQuit
         Just ""      -> loop
         Just ":?"    -> cmdPrintHelp
@@ -78,29 +81,29 @@ loop = do
         Just ":q"    -> cmdQuit
         Just ":quit" -> cmdQuit
         Just input
-            | ":open "   `isPrefixOf` input -> cmdOpen input
-            | ":o "      `isPrefixOf` input -> cmdOpen input
+            | ":open"   == (head $ words input) -> tryCmdWithParams cmdOpen input
+            | ":o"      == (head $ words input) -> tryCmdWithParams cmdOpen input
 
-            | ":close "  `isPrefixOf` input -> cmdClose input
-            | ":c "      `isPrefixOf` input -> cmdClose input
+            | ":close"  == (head $ words input) -> tryCmdWithParams cmdClose input
+            | ":c"      == (head $ words input) -> tryCmdWithParams cmdClose input
 
-            | ":load "   `isPrefixOf` input -> cmdImport input
-            | ":l "      `isPrefixOf` input -> cmdImport input
+            | ":load"   == (head $ words input) -> tryCmdWithParams cmdImport input
+            | ":l"      == (head $ words input) -> tryCmdWithParams cmdImport input
 
-            | ":type "   `isPrefixOf` input -> cmdType input
-            | ":t "      `isPrefixOf` input -> cmdType input
+            | ":type"   == (head $ words input) -> tryCmdWithParams cmdType input
+            | ":t"      == (head $ words input) -> tryCmdWithParams cmdType input
 
-            | ":module " `isPrefixOf` input -> cmdModule input
-            | ":m "      `isPrefixOf` input -> cmdModule input
+            | ":module" == (head $ words input) -> tryCmdWithParams cmdModule input
+            | ":m"      == (head $ words input) -> tryCmdWithParams cmdModule input
 
-            | ":cd "     `isPrefixOf` input -> cmdCd input
-            | ":set "    `isPrefixOf` input -> cmdSet input
-            | ":mode "   `isPrefixOf` input -> cmdUpdateAccessMode input
+            | ":cd"     == (head $ words input) -> tryCmdWithParams cmdCd input
+            | ":set"    == (head $ words input) -> tryCmdWithParams cmdSet input
+            | ":mode"   == (head $ words input) -> tryCmdWithParams cmdUpdateAccessMode input
+            | ":log"    == (head $ words input) -> tryCmdWithParams cmdLog input
+            | ":!"      == (head $ words input) -> tryCmdWithParams cmdLineCmd input
+            | ":"       == (head $ words input) -> cmdError input
 
-            | ":log "    `isPrefixOf` input -> cmdLog input
-            | ":! "      `isPrefixOf` input -> cmdLineCmd input
-            | ":"        `isPrefixOf` input -> cmdError input
-            | otherwise                     -> cmdExpr input
+            | otherwise                         -> cmdExpr input
         `GHC.gcatch`
             handleError state
 
@@ -129,11 +132,26 @@ reopenDBs = do
     runExpr . sOpenDB . fromMaybe "" $ activeDB state
     return ()
 
+-- | Sets current directory to working directory prior to session reset
+reSetCd :: DaisonI ()
+reSetCd = do
+    st <- getState
+    runExpr $ "setCurrentDirectory \"" ++ currentDirectory st ++ "\""
+    return ()
+
 getPrompt :: DaisonState -> String
 getPrompt state =
     case activeDB state of
         Nothing   -> "Daison> "
         Just file -> "Daison (" ++ file ++ ")> "
+
+-- | Checks that input has at least one parameter and throws an error otherwise
+tryCmdWithParams :: (String -> DaisonI ()) -> String -> DaisonI ()
+tryCmdWithParams cmd input = do
+  if length (words input) == 1
+    then GHC.throw MissingParameter
+         loop
+  else cmd input
 
 removeCmd :: String -> String
 removeCmd = unwords . tail . words
@@ -141,7 +159,7 @@ removeCmd = unwords . tail . words
 removeDoubleQuotes :: String -> String
 removeDoubleQuotes = filter (/= '"')
 
-cmdError :: String -> DaisonI()
+cmdError :: String -> DaisonI ()
 cmdError input = GHC.throw $ UnknownCmd (takeWhile (' ' /=) input)
 
 cmdQuit :: DaisonI ()
@@ -166,15 +184,18 @@ setStartupArgs = do
     let newFlags = filter (isPrefixOf "-") args
     let haskellSourceFileArg = getFirstHaskellFileArg args
     let databaseArgs = filter (isSuffixOf ".db") args
-    unless (null newFlags) $ do 
-        printText $ "Attempting to set flag arguments: " ++ unwords newFlags
+    unless (null newFlags) $ do
+        printText $ "Attempting to set flag(s): " ++ unwords newFlags
         setExtensions $ map (GHC.L GHC.noSrcSpan) newFlags
-    unless (null haskellSourceFileArg) $ do 
-        printText $ "Attempting to load Haskell file from arguments - " ++ haskellSourceFileArg
+        printText $ "Flag(s) set successfully.\n"
+    unless (null haskellSourceFileArg) $ do
+        printText $ "Attempting to load file(s): " ++ haskellSourceFileArg
         loadFile haskellSourceFileArg
+        printText $ "File(s) loaded successfully.\n"
     unless (null databaseArgs) $ do
-        printText $ "Setting open databases from arguments - " ++ unwords databaseArgs
+        printText $ "Attempting to open database(s): " ++ unwords databaseArgs
         mapM_ openDb databaseArgs
+        printText $ "Database(s) opened successfully.\n"
 
 getFirstHaskellFileArg :: [String] -> String
 getFirstHaskellFileArg args = do
@@ -194,9 +215,9 @@ setExtensions :: [GHC.GenLocated GHC.SrcSpan String] -> DaisonI ()
 setExtensions newExtensions = do
     flags <- liftGhc GHC.getSessionDynFlags
     (flags', lo, ws) <- GHC.liftIO $ GHC.parseDynamicFlags flags newExtensions
-    mapM_ (\(GHC.L _ s) -> GHC.liftIO $ print $ "Unknown Flag: " ++ s) lo
+    mapM_ (\(GHC.L _ s) -> GHC.throw $ UnknownFlag s) lo
     case ws of
-        [] -> do 
+        [] -> do
             liftGhc $ GHC.setSessionDynFlags flags'
             return ()
         ws -> mapM_ (\ (GHC.Warn _ (GHC.L _ s)) -> GHC.liftIO $ print s) ws
@@ -206,8 +227,7 @@ cmdCd :: String -> DaisonI ()
 cmdCd input = do
     let arg = removeDoubleQuotes $ words input !! 1
     cd arg
-    st <- getState
-    runExpr $ "setCurrentDirectory \"" ++ currentDirectory st ++ "\""
+    reSetCd
     loop
 
 cmdOpen :: String -> DaisonI ()
@@ -287,8 +307,9 @@ loadFile input = do
                         addImport (makeIIDecl $ GHC.moduleName m)
                         runExpr sDefineOpenDBs
                         reopenDBs
+                        reSetCd
                         printText $ "Loaded " ++ filePath
-            Nothing -> printText $ "Input is not a valid/existing file"
+            Nothing -> GHC.throw NoSuchFile
 
 cmdModule :: String -> DaisonI ()
 cmdModule input = do
@@ -304,8 +325,11 @@ cmdType input = do
 
 cmdLineCmd :: String -> DaisonI ()
 cmdLineCmd input = do
-    let arg = removeCmd input
-    GHC.liftIO $ callCommand arg
+    let args = removeCmd input
+    let argsList = words args
+    path <- currentDirectory <$> getState
+    s <- GHC.liftIO $ readCreateProcess ((shell args){cwd = Just path } ) ""
+    GHC.liftIO $ putStrLn s
     loop
 
 cmdUpdateAccessMode :: String -> DaisonI ()
@@ -371,7 +395,7 @@ cmdLog' "wipe" state = ifLogExists $ \path -> do
 
 cmdLog' _ state = printText $
     ":log {path|show|toggle|wipe}\n" ++
-    ":? for help"
+    "Use :? for help."
 
 ifLogExists :: (FilePath -> DaisonI ()) -> DaisonI ()
 ifLogExists action = do

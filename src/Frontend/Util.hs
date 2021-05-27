@@ -27,14 +27,12 @@ cd' :: String -> String -> String
 cd' ".." s = reverse $ dropWhile (/= '/') (reverse s)
 cd' d s    = s ++ "/" ++ d
 
-
--- TODO: Check if OS before calling winToUnix or unixToWin
 cd :: String -> DaisonI ()
 cd s = do
     st <- getState
     let ud = cd' s $ winToUnix $ currentDirectory st
     id <- GHC.liftIO $ doesDirectoryExist ud
-    if id then 
+    if id then
         do modifyState (\st -> st { currentDirectory = ud } )
            GHC.liftIO $ putStrLn ("Working directory set to " ++ ud)
            return ()
@@ -51,28 +49,27 @@ helpText, welcomeMsg, exitMsg :: String
 helpText =
     "Commands available from the prompt:\n" ++
     "   <statement>         Evaluate/run <statement>\n" ++
-    "   :dbs                Print the list of databases that are currently open\n" ++
     "   :help, :?           Display this list of commands\n" ++
     "   :log path           Display the log file's path\n" ++
     "        show           Display the log file's contents\n" ++
     "        toggle         Enable/disable logging\n" ++
     "        wipe           Attempt to wipe the log file's contents\n" ++
     "   :type <expr>        Show the type of <expr>\n" ++
+    "   :! <command>        Run the shell command <command>\n" ++
     "   :quit, :q           Quit the program\n" ++
-    "   :! <command>        Run the shell command <command>" ++
 
     "\n\n" ++
     "   -- Commands for working with databases:\n" ++
     "\n" ++
-    "   :close <name>       Close database with <name> if opened\n" ++
-    "   :mode [mode]        Set access mode: either ReadWrite or\n" ++
-    "                       ReadOnly.\n" ++
-    "                       Displays the current access mode if no\n" ++
-    "                       argument is given.\n" ++
+    "   :dbs                Print the list of databases that are currently open\n" ++
     "   :open <name>        Open database with <name> or set focus to \n" ++
     "                       database with <name> if already open.\n" ++
     "                       This command creates a database with <name>\n" ++
     "                       if it doesn't exist.\n" ++
+    "   :close <name>       Close database with <name> if opened\n" ++
+    "   :mode [mode]        Set access mode (`ReadWrite` or `ReadOnly`)\n" ++
+    "                       Displays the current access mode if no\n" ++
+    "                       argument is given.\n" ++
 
     "\n\n" ++
     "   -- Commands for utility:\n" ++
@@ -84,8 +81,8 @@ helpText =
 
 welcomeMsg = "Daison-Frontend, version " ++
                 showVersion version ++
-                "  :? for help\n" ++
+                "  :? for help\n\n" ++
              "Note: A log of user input is kept in order to enable arrow key navigation.\n" ++
-             "      Use the help command for more information."
+             "      Use the help command for more information.\n"
 
 exitMsg = "Leaving Daison-Frontend. Connections to open databases will be closed."
