@@ -27,8 +27,6 @@ cd' :: String -> String -> String
 cd' ".." s = reverse $ dropWhile (/= '/') (reverse s)
 cd' d s    = s ++ "/" ++ d
 
-
--- TODO: Check if OS before calling winToUnix or unixToWin
 cd :: String -> DaisonI ()
 cd s = do
     st <- getState
