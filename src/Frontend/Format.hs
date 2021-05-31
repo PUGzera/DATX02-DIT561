@@ -9,6 +9,7 @@ import Frontend.Typecheck
 
 import Control.Monad ((<=<))
 import Data.Char (isSpace)
+import Data.List.Split (splitOn)
 import Data.List
 
 -- | State record used in toRows
@@ -37,7 +38,7 @@ formatTable result expr
         rows = postProcess . toRows $ resetFormat result
         row = head rows
         singleRow = do
-            typeSig <- exprType <=< mToDaison $ expr
+            typeSig <- exprType $ removeTypeConstraint expr
             return $ maybeBrackets ('[' == (head . (!! 1) . words) typeSig)
                      . GHC.maybeParens (multipleColumns row)
                      . GHC.hcat 
@@ -191,10 +192,10 @@ toRows result = toRows' $ TRA 0 0 False False True False 0 0 [] [] result result
 toTable :: String -> [[String]] -> DaisonI GHC.Doc
 toTable expr processedRows = do
     let queryText = GHC.text expr
-    typeSig <- mToDaison expr >>= exprType >>= removeDaison
+    typeSig <- exprType expr >>= removeQueryMonad
 
     let typeText = GHC.text $ "it :: " ++ typeSig
-    let header = map (dropWhile isSpace) $ getLabels $ resetFormat typeSig
+    let header = map (dropWhile isSpace) $ getLabels $ resetFormat . removeTypeConstraint $ typeSig
 
     let indexCol = "it !!" : map show [0..length processedRows - 1]
     let rowsT = indexCol : transpose (header : processedRows)
@@ -213,6 +214,24 @@ removeDaison :: String -> DaisonI String
 removeDaison str
     | "Daison " `isPrefixOf` str = return $ drop 7 str
     | otherwise                  = return str
+
+-- | Remove the QueryMonad type constraint from a type signature.
+removeQueryMonad :: String -> DaisonI String
+removeQueryMonad ts = return $ removeQueryMonad'
+                               . replace "=>\nm " "=> "
+                               . replace "=> m " "=> "
+                               . replace "(, " "(" 
+                               . replace "QueryMonad m" ""
+                               $ ts
+
+removeQueryMonad' ts
+    | head ts' == "=>" = unwords . tail $ ts'
+    | otherwise = ts
+    where ts' = words ts
+
+-- | Replace occurences of substr in str with replacement
+replace :: String -> String -> String -> String
+replace substr replacement str = intercalate replacement $ splitOn substr str
 
 -- | Remove newlines and excess spacing from a string.
 resetFormat :: String -> String

@@ -101,10 +101,9 @@ runDaisonStmt :: String -> DaisonI [GHC.Name]
 runDaisonStmt stmt = do
     state <- getState
     t <- exprType stmt
-    daisonStmt <- mToDaison stmt
     let query = "it <- runDaison _activeDB "
                 ++ show (mode state) ++ " "
-                ++ "(" ++ daisonStmt ++ ")"
+                ++ "(" ++ stmt ++ ")"
     case activeDB state of
         Nothing -> GHC.throw NoOpenDB
         Just _  -> do
