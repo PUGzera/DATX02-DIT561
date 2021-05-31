@@ -56,7 +56,9 @@ executable daison-frontend
   hs-source-dirs:      src
   if os(windows)
     ghc-options:       -dynamic
-  if !os(windows)
+  if !os(windows) && impl(ghc <= 8.6.5)
+    ghc-options:       -dynamic
+  else
     ghc-options:       -dynamic-too
   default-language:    Haskell2010
 

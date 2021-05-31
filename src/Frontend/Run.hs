@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, BangPatterns #-}
+{-# LANGUAGE CPP #-}
 
 -- | The loop of the program.
 module Frontend.Run (
@@ -18,10 +18,10 @@ import qualified System.IO as SIO
 import System.Console.GetOpt
 import System.Environment (getArgs)
 import System.Directory (getCurrentDirectory, doesFileExist)
-import System.Process (readCreateProcess, shell, cwd)
+import System.Process (createProcess, shell, cwd, waitForProcess)
 
 import Control.Concurrent (myThreadId)
-import Control.Monad (replicateM_, unless)
+import Control.Monad (replicateM_, unless, when)
 import Data.Char (toUpper)
 import Data.Maybe (fromMaybe)
 import Data.List (isPrefixOf, isSuffixOf)
@@ -58,6 +58,7 @@ initSession :: DaisonI ()
 initSession = do
     dflags <- liftGhc GHC.getSessionDynFlags
     liftGhc $ GHC.setSessionDynFlags dflags
+    when GHC.dynamicGhc $ setExtensions' "-dynamic"
     mapM_ (addImport . makeIIDecl) baseModuleNames
     mapM_ addExtension baseExtensions
     runExpr sDefineOpenDBs
@@ -190,7 +191,7 @@ setStartupArgs = do
     let databaseArgs = filter (isSuffixOf ".db") args
     unless (null newFlags) $ do
         printText $ "Attempting to set flag(s): " ++ unwords newFlags
-        setExtensions $ map (GHC.L GHC.noSrcSpan) newFlags
+        mapM_ setExtensions' newFlags
         printText $ "Flag(s) set successfully.\n"
     unless (null haskellSourceFileArg) $ do
         printText $ "Attempting to load file(s): " ++ haskellSourceFileArg
@@ -212,8 +213,11 @@ getFirstHaskellFileArg args = do
 cmdSet :: String -> DaisonI ()
 cmdSet input = do
     let arg = removeCmd input
-    setExtensions [GHC.L GHC.noSrcSpan arg]
+    setExtensions' arg
     loop
+
+setExtensions' :: String -> DaisonI ()
+setExtensions' ext = setExtensions [GHC.L GHC.noSrcSpan ext]
 
 setExtensions :: [GHC.GenLocated GHC.SrcSpan String] -> DaisonI ()
 setExtensions newExtensions = do
@@ -230,7 +234,8 @@ setExtensions newExtensions = do
 cmdCd :: String -> DaisonI ()
 cmdCd input = do
     let arg = removeDoubleQuotes $ words input !! 1
-    cd arg
+    let arg' = reverse . dropWhile (== '/') . reverse $ arg
+    cd arg'
     reSetCd
     loop
 
@@ -332,8 +337,9 @@ cmdLineCmd input = do
     let args = removeCmd input
     let argsList = words args
     path <- currentDirectory <$> getState
-    s <- GHC.liftIO $ readCreateProcess ((shell args){cwd = Just path } ) ""
-    GHC.liftIO $ putStrLn s
+    printText path
+    (_, _, _, p) <- GHC.liftIO $ createProcess ((shell args){cwd = Just path } )
+    GHC.liftIO $ waitForProcess p
     loop
 
 cmdUpdateAccessMode :: String -> DaisonI ()
@@ -389,12 +395,7 @@ cmdLog' "toggle" state = do
                 if logInput' then "ENABLED." else "DISABLED."
 
 cmdLog' "wipe" state = ifLogExists $ \path -> do
-    handle <- GHC.liftIO $ SIO.openFile path SIO.ReadWriteMode
-    contents <- GHC.liftIO $ SIO.hGetContents handle
-    let ![!o1,!o2] = map (replicate (length contents)) ['\xaa','\x55']
-    GHC.liftIO $ SIO.hClose handle
-    replicateM_ 3 $ mapM_ (GHC.liftIO . writeFile path) [o1,o2]
-    GHC.liftIO $ writeFile path "" -- empty file
+    wipeFile False path -- wipe the contents, not the file itself
     printText "Log file wiped."
 
 cmdLog' _ state = printText $

@@ -1,17 +1,20 @@
-
+{-# LANGUAGE BangPatterns #-}
 module Frontend.Util (
     cd,
     printText,
     helpText,
     welcomeMsg,
-    exitMsg
+    exitMsg,
+    wipeFile
 ) where
 
 import qualified Frontend.GHCInterface as GHC
 import Frontend.Base
 
-import System.Directory (doesDirectoryExist)
+import qualified System.IO as SIO
+import System.Directory (doesDirectoryExist, removeFile)
 
+import Control.Monad (replicateM_, when)
 import Data.List.Split (splitOn)
 import Data.List (intercalate)
 import Data.Version (showVersion)
@@ -24,7 +27,7 @@ unixToWin :: String -> String
 unixToWin s = intercalate "\\" (splitOn "/" s)
 
 cd' :: String -> String -> String
-cd' ".." s = reverse $ dropWhile (/= '/') (reverse s)
+cd' ".." s = reverse $ tail $ dropWhile (/= '/') (reverse s)
 cd' d s    = s ++ "/" ++ d
 
 cd :: String -> DaisonI ()
@@ -86,3 +89,15 @@ welcomeMsg = "Daison-Frontend, version " ++
              "      Use the help command for more information.\n"
 
 exitMsg = "Leaving Daison-Frontend. Connections to open databases will be closed."
+
+-- | Attempts to remove traces of old data by overwriting it before emptying
+--   the file. Optionally also removes the file.
+wipeFile :: Bool -> FilePath  -> DaisonI( )
+wipeFile remove path = do
+    handle <- GHC.liftIO $ SIO.openFile path SIO.ReadWriteMode
+    contents <- GHC.liftIO $ SIO.hGetContents handle
+    let ![!o1,!o2] = map (replicate (length contents)) ['\xaa','\x55']
+    GHC.liftIO $ SIO.hClose handle
+    replicateM_ 3 $ mapM_ (GHC.liftIO . writeFile path) [o1,o2]
+    GHC.liftIO $ writeFile path "" -- empty file
+    when remove $ GHC.liftIO $ removeFile path
