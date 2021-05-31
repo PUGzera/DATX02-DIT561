@@ -110,7 +110,7 @@ loop = do
 
 -- | Checks if `cmd` is the first word of `input`
 isCmdOf :: String -> String -> Bool
-isCmdOf cmd input = cmd == (head $ words input)
+isCmdOf cmd input = cmd == head (words input)
 
 -- | Print exit message and close databases
 exit :: DaisonI ()
@@ -152,7 +152,7 @@ getPrompt state =
 
 -- | Checks that input has at least one parameter and throws an error otherwise
 tryCmdWithParams :: (String -> DaisonI ()) -> String -> DaisonI ()
-tryCmdWithParams cmd input = do
+tryCmdWithParams cmd input =
   if length (words input) == 1
     then GHC.throw MissingParameter
          loop
@@ -192,15 +192,15 @@ setStartupArgs = do
     unless (null newFlags) $ do
         printText $ "Attempting to set flag(s): " ++ unwords newFlags
         mapM_ setExtensions' newFlags
-        printText $ "Flag(s) set successfully.\n"
+        printText "Flag(s) set successfully.\n"
     unless (null haskellSourceFileArg) $ do
         printText $ "Attempting to load file(s): " ++ haskellSourceFileArg
         loadFile haskellSourceFileArg
-        printText $ "File(s) loaded successfully.\n"
+        printText "File(s) loaded successfully.\n"
     unless (null databaseArgs) $ do
         printText $ "Attempting to open database(s): " ++ unwords databaseArgs
         mapM_ openDb databaseArgs
-        printText $ "Database(s) opened successfully.\n"
+        printText "Database(s) opened successfully.\n"
 
 getFirstHaskellFileArg :: [String] -> String
 getFirstHaskellFileArg args = do
@@ -300,10 +300,10 @@ loadFile input = do
             return (GHC.targetId t, Just t)
         }) `GHC.gcatch` (\e -> do {
             return (e :: GHC.SomeException); --Casting, might exist a better solution as this is tricking the type system
-            return $ (GHC.TargetFile "" Nothing, Nothing)
+            return (GHC.TargetFile "" Nothing, Nothing)
         })
         case target of
-            Just target' -> do
+            Just target' ->
                 case id of
                     (GHC.TargetFile fp _) -> do
                         closeDBs
