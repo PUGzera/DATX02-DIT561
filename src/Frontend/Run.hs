@@ -18,7 +18,7 @@ import qualified System.IO as SIO
 import System.Console.GetOpt
 import System.Environment (getArgs)
 import System.Directory (getCurrentDirectory, doesFileExist)
-import System.Process (readCreateProcess, shell, cwd)
+import System.Process (createProcess, shell, cwd, waitForProcess)
 
 import Control.Concurrent (myThreadId)
 import Control.Monad (replicateM_, unless)
@@ -328,8 +328,9 @@ cmdLineCmd input = do
     let args = removeCmd input
     let argsList = words args
     path <- currentDirectory <$> getState
-    s <- GHC.liftIO $ readCreateProcess ((shell args){cwd = Just path } ) ""
-    GHC.liftIO $ putStrLn s
+    printText path
+    (_, _, _, p) <- GHC.liftIO $ createProcess ((shell args){cwd = Just path } )
+    GHC.liftIO $ waitForProcess p
     loop
 
 cmdUpdateAccessMode :: String -> DaisonI ()
