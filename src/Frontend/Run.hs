@@ -230,7 +230,7 @@ setExtensions newExtensions = do
 cmdCd :: String -> DaisonI ()
 cmdCd input = do
     let arg = removeDoubleQuotes $ words input !! 1
-    let arg' = if last arg == '/' then init arg else arg
+    let arg' = reverse . dropWhile (== '/') . reverse $ arg
     cd arg'
     reSetCd
     loop
