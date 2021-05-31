@@ -81,31 +81,35 @@ loop = do
         Just ":q"    -> cmdQuit
         Just ":quit" -> cmdQuit
         Just input
-            | ":open"   == (head $ words input) -> tryCmdWithParams cmdOpen input
-            | ":o"      == (head $ words input) -> tryCmdWithParams cmdOpen input
+            | ":open"   `isCmdOf`    input -> tryCmdWithParams cmdOpen input
+            | ":o"      `isCmdOf`    input  -> tryCmdWithParams cmdOpen input
 
-            | ":close"  == (head $ words input) -> tryCmdWithParams cmdClose input
-            | ":c"      == (head $ words input) -> tryCmdWithParams cmdClose input
+            | ":close"  `isCmdOf`    input -> tryCmdWithParams cmdClose input
+            | ":c"      `isCmdOf`    input -> tryCmdWithParams cmdClose input
 
-            | ":load"   == (head $ words input) -> tryCmdWithParams cmdImport input
-            | ":l"      == (head $ words input) -> tryCmdWithParams cmdImport input
+            | ":load"   `isCmdOf`    input -> tryCmdWithParams cmdImport input
+            | ":l"      `isCmdOf`    input -> tryCmdWithParams cmdImport input
 
-            | ":type"   == (head $ words input) -> tryCmdWithParams cmdType input
-            | ":t"      == (head $ words input) -> tryCmdWithParams cmdType input
+            | ":type"   `isCmdOf`    input -> tryCmdWithParams cmdType input
+            | ":t"      `isCmdOf`    input -> tryCmdWithParams cmdType input
 
-            | ":module" == (head $ words input) -> tryCmdWithParams cmdModule input
-            | ":m"      == (head $ words input) -> tryCmdWithParams cmdModule input
+            | ":module" `isCmdOf`    input -> tryCmdWithParams cmdModule input
+            | ":m"      `isCmdOf`    input -> tryCmdWithParams cmdModule input
 
-            | ":cd"     == (head $ words input) -> tryCmdWithParams cmdCd input
-            | ":set"    == (head $ words input) -> tryCmdWithParams cmdSet input
-            | ":mode"   == (head $ words input) -> tryCmdWithParams cmdUpdateAccessMode input
-            | ":log"    == (head $ words input) -> tryCmdWithParams cmdLog input
-            | ":!"      == (head $ words input) -> tryCmdWithParams cmdLineCmd input
-            | ":"       == (head $ words input) -> cmdError input
+            | ":cd"     `isCmdOf`    input -> tryCmdWithParams cmdCd input
+            | ":set"    `isCmdOf`    input -> tryCmdWithParams cmdSet input
+            | ":mode"   `isCmdOf`    input -> tryCmdWithParams cmdUpdateAccessMode input
+            | ":log"    `isCmdOf`    input -> tryCmdWithParams cmdLog input
+            | ":!"      `isCmdOf`    input -> tryCmdWithParams cmdLineCmd input
+            | ":"       `isPrefixOf` input  -> cmdError input
 
             | otherwise                         -> cmdExpr input
         `GHC.gcatch`
             handleError state
+
+-- | Checks if `cmd` is the first word of `input`
+isCmdOf :: String -> String -> Bool
+isCmdOf cmd input = cmd == (head $ words input)
 
 -- | Print exit message and close databases
 exit :: DaisonI ()
