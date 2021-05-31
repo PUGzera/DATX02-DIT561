@@ -3,7 +3,7 @@ module Frontend.Typecheck (
     exprType,
     exprIsQuery,
     getExprCategory,
-    mToDaison
+    removeTypeConstraint
 ) where
 
 import qualified Frontend.GHCInterface as GHC hiding (catch)
@@ -12,6 +12,7 @@ import Frontend.Context
 
 import System.IO (Handle)
 
+import Data.List.Split (splitOn)
 import Data.List (isPrefixOf)
 
 -- | Find the GHC evaluated expression type.
@@ -71,15 +72,6 @@ getExprCategory expr = do
             | GHC.isDecl dflags expr = Just "Declaration"
             | otherwise              = Nothing
     return category
-
--- | Tell the interpreter to parse 'm a' as 'Daison a'.
-mToDaison :: String -> DaisonI String
-mToDaison stmt = do
-        t <- exprType stmt
-        return $ "(" ++ stmt ++ ")"
-        where
-            asDaison ('m':t) = "Daison" ++ t
-            asDaison t = t
 
 -- | e.g. "QueryMonad m => m [(Key (String, Int), (String, Int))]"
 --   =>   "m [(Key (String, Int), (String, Int))]"

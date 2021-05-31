@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, BangPatterns #-}
+{-# LANGUAGE CPP #-}
 
 -- | The loop of the program.
 module Frontend.Run (
@@ -18,10 +18,10 @@ import qualified System.IO as SIO
 import System.Console.GetOpt
 import System.Environment (getArgs)
 import System.Directory (getCurrentDirectory, doesFileExist)
-import System.Process (readCreateProcess, shell, cwd)
+import System.Process (createProcess, shell, cwd, waitForProcess)
 
 import Control.Concurrent (myThreadId)
-import Control.Monad (replicateM_, unless)
+import Control.Monad (replicateM_, unless, when)
 import Data.Char (toUpper)
 import Data.Maybe (fromMaybe)
 import Data.List (isPrefixOf, isSuffixOf)
@@ -58,6 +58,7 @@ initSession :: DaisonI ()
 initSession = do
     dflags <- liftGhc GHC.getSessionDynFlags
     liftGhc $ GHC.setSessionDynFlags dflags
+    when GHC.dynamicGhc $ setExtensions' "-dynamic"
     mapM_ (addImport . makeIIDecl) baseModuleNames
     mapM_ addExtension baseExtensions
     runExpr sDefineOpenDBs
@@ -81,31 +82,35 @@ loop = do
         Just ":q"    -> cmdQuit
         Just ":quit" -> cmdQuit
         Just input
-            | ":open"   == (head $ words input) -> tryCmdWithParams cmdOpen input
-            | ":o"      == (head $ words input) -> tryCmdWithParams cmdOpen input
+            | ":open"   `isCmdOf`    input -> tryCmdWithParams cmdOpen input
+            | ":o"      `isCmdOf`    input  -> tryCmdWithParams cmdOpen input
 
-            | ":close"  == (head $ words input) -> tryCmdWithParams cmdClose input
-            | ":c"      == (head $ words input) -> tryCmdWithParams cmdClose input
+            | ":close"  `isCmdOf`    input -> tryCmdWithParams cmdClose input
+            | ":c"      `isCmdOf`    input -> tryCmdWithParams cmdClose input
 
-            | ":load"   == (head $ words input) -> tryCmdWithParams cmdImport input
-            | ":l"      == (head $ words input) -> tryCmdWithParams cmdImport input
+            | ":load"   `isCmdOf`    input -> tryCmdWithParams cmdImport input
+            | ":l"      `isCmdOf`    input -> tryCmdWithParams cmdImport input
 
-            | ":type"   == (head $ words input) -> tryCmdWithParams cmdType input
-            | ":t"      == (head $ words input) -> tryCmdWithParams cmdType input
+            | ":type"   `isCmdOf`    input -> tryCmdWithParams cmdType input
+            | ":t"      `isCmdOf`    input -> tryCmdWithParams cmdType input
 
-            | ":module" == (head $ words input) -> tryCmdWithParams cmdModule input
-            | ":m"      == (head $ words input) -> tryCmdWithParams cmdModule input
+            | ":module" `isCmdOf`    input -> tryCmdWithParams cmdModule input
+            | ":m"      `isCmdOf`    input -> tryCmdWithParams cmdModule input
 
-            | ":cd"     == (head $ words input) -> tryCmdWithParams cmdCd input
-            | ":set"    == (head $ words input) -> tryCmdWithParams cmdSet input
-            | ":mode"   == (head $ words input) -> tryCmdWithParams cmdUpdateAccessMode input
-            | ":log"    == (head $ words input) -> tryCmdWithParams cmdLog input
-            | ":!"      == (head $ words input) -> tryCmdWithParams cmdLineCmd input
-            | ":"       == (head $ words input) -> cmdError input
+            | ":cd"     `isCmdOf`    input -> tryCmdWithParams cmdCd input
+            | ":set"    `isCmdOf`    input -> tryCmdWithParams cmdSet input
+            | ":mode"   `isCmdOf`    input -> tryCmdWithParams cmdUpdateAccessMode input
+            | ":log"    `isCmdOf`    input -> tryCmdWithParams cmdLog input
+            | ":!"      `isCmdOf`    input -> tryCmdWithParams cmdLineCmd input
+            | ":"       `isPrefixOf` input  -> cmdError input
 
             | otherwise                         -> cmdExpr input
         `GHC.gcatch`
             handleError state
+
+-- | Checks if `cmd` is the first word of `input`
+isCmdOf :: String -> String -> Bool
+isCmdOf cmd input = cmd == head (words input)
 
 -- | Print exit message and close databases
 exit :: DaisonI ()
@@ -147,7 +152,7 @@ getPrompt state =
 
 -- | Checks that input has at least one parameter and throws an error otherwise
 tryCmdWithParams :: (String -> DaisonI ()) -> String -> DaisonI ()
-tryCmdWithParams cmd input = do
+tryCmdWithParams cmd input =
   if length (words input) == 1
     then GHC.throw MissingParameter
          loop
@@ -186,16 +191,16 @@ setStartupArgs = do
     let databaseArgs = filter (isSuffixOf ".db") args
     unless (null newFlags) $ do
         printText $ "Attempting to set flag(s): " ++ unwords newFlags
-        setExtensions $ map (GHC.L GHC.noSrcSpan) newFlags
-        printText $ "Flag(s) set successfully.\n"
+        mapM_ setExtensions' newFlags
+        printText "Flag(s) set successfully.\n"
     unless (null haskellSourceFileArg) $ do
         printText $ "Attempting to load file(s): " ++ haskellSourceFileArg
         loadFile haskellSourceFileArg
-        printText $ "File(s) loaded successfully.\n"
+        printText "File(s) loaded successfully.\n"
     unless (null databaseArgs) $ do
         printText $ "Attempting to open database(s): " ++ unwords databaseArgs
         mapM_ openDb databaseArgs
-        printText $ "Database(s) opened successfully.\n"
+        printText "Database(s) opened successfully.\n"
 
 getFirstHaskellFileArg :: [String] -> String
 getFirstHaskellFileArg args = do
@@ -208,8 +213,11 @@ getFirstHaskellFileArg args = do
 cmdSet :: String -> DaisonI ()
 cmdSet input = do
     let arg = removeCmd input
-    setExtensions [GHC.L GHC.noSrcSpan arg]
+    setExtensions' arg
     loop
+
+setExtensions' :: String -> DaisonI ()
+setExtensions' ext = setExtensions [GHC.L GHC.noSrcSpan ext]
 
 setExtensions :: [GHC.GenLocated GHC.SrcSpan String] -> DaisonI ()
 setExtensions newExtensions = do
@@ -226,7 +234,8 @@ setExtensions newExtensions = do
 cmdCd :: String -> DaisonI ()
 cmdCd input = do
     let arg = removeDoubleQuotes $ words input !! 1
-    cd arg
+    let arg' = reverse . dropWhile (== '/') . reverse $ arg
+    cd arg'
     reSetCd
     loop
 
@@ -291,10 +300,10 @@ loadFile input = do
             return (GHC.targetId t, Just t)
         }) `GHC.gcatch` (\e -> do {
             return (e :: GHC.SomeException); --Casting, might exist a better solution as this is tricking the type system
-            return $ (GHC.TargetFile "" Nothing, Nothing)
+            return (GHC.TargetFile "" Nothing, Nothing)
         })
         case target of
-            Just target' -> do
+            Just target' ->
                 case id of
                     (GHC.TargetFile fp _) -> do
                         closeDBs
@@ -328,8 +337,9 @@ cmdLineCmd input = do
     let args = removeCmd input
     let argsList = words args
     path <- currentDirectory <$> getState
-    s <- GHC.liftIO $ readCreateProcess ((shell args){cwd = Just path } ) ""
-    GHC.liftIO $ putStrLn s
+    printText path
+    (_, _, _, p) <- GHC.liftIO $ createProcess ((shell args){cwd = Just path } )
+    GHC.liftIO $ waitForProcess p
     loop
 
 cmdUpdateAccessMode :: String -> DaisonI ()
@@ -385,12 +395,7 @@ cmdLog' "toggle" state = do
                 if logInput' then "ENABLED." else "DISABLED."
 
 cmdLog' "wipe" state = ifLogExists $ \path -> do
-    handle <- GHC.liftIO $ SIO.openFile path SIO.ReadWriteMode
-    contents <- GHC.liftIO $ SIO.hGetContents handle
-    let ![!o1,!o2] = map (replicate (length contents)) ['\xaa','\x55']
-    GHC.liftIO $ SIO.hClose handle
-    replicateM_ 3 $ mapM_ (GHC.liftIO . writeFile path) [o1,o2]
-    GHC.liftIO $ writeFile path "" -- empty file
+    wipeFile False path -- wipe the contents, not the file itself
     printText "Log file wiped."
 
 cmdLog' _ state = printText $
