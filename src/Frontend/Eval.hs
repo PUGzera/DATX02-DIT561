@@ -15,8 +15,10 @@ import qualified Frontend.GHCInterface as GHC
 import Frontend.Base
 import Frontend.Format
 import Frontend.Typecheck
+import Frontend.Util (wipeFile)
 
 import qualified System.Process as P
+import System.IO (hClose, hPutStrLn, openTempFile)
 
 import Data.Char (isSymbol)
 
@@ -34,18 +36,23 @@ display' = display'' True
 display'' :: Show a => Bool -> a -> DaisonI ()
 display'' forceLess showable = do
     let string = show showable
-    let sendToLess = do
-            (_, Just hout, _, _) <- 
-                P.createProcess(P.proc "echo" [string]) { P.std_out = P.CreatePipe }
+    let sendToLess fp = do
             (_, _, _, hcmd) <- 
-                P.createProcess(P.proc "less" ["--chop-long-lines"]) { P.std_in = P.UseHandle hout }
+                P.createProcess $ P.shell ("less -f --chop-long-lines " ++ fp)
             P.waitForProcess hcmd
             return $ Right ()
 
     if isShort string && not forceLess then GHC.liftIO $ print showable
     else do
-        res <- GHC.liftIO $ GHC.catch sendToLess $
+        dir <- currentDirectory <$> getState
+        (fp, h) <- GHC.liftIO $ openTempFile dir "temp_daison_table.txt"
+        GHC.liftIO $ hPutStrLn h string
+        GHC.liftIO $ hPutStrLn h "" -- avoid use of ++ operator 
+        GHC.liftIO $ hClose h
+
+        res <- GHC.liftIO $ GHC.catch (sendToLess fp) $
                 \e -> (return . Left . show) (e :: GHC.IOException)
+        wipeFile True fp
         GHC.liftIO $ case res of
             Left _ -> print showable
             Right () -> return ()

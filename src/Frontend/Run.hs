@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, BangPatterns #-}
+{-# LANGUAGE CPP #-}
 
 -- | The loop of the program.
 module Frontend.Run (
@@ -390,12 +390,7 @@ cmdLog' "toggle" state = do
                 if logInput' then "ENABLED." else "DISABLED."
 
 cmdLog' "wipe" state = ifLogExists $ \path -> do
-    handle <- GHC.liftIO $ SIO.openFile path SIO.ReadWriteMode
-    contents <- GHC.liftIO $ SIO.hGetContents handle
-    let ![!o1,!o2] = map (replicate (length contents)) ['\xaa','\x55']
-    GHC.liftIO $ SIO.hClose handle
-    replicateM_ 3 $ mapM_ (GHC.liftIO . writeFile path) [o1,o2]
-    GHC.liftIO $ writeFile path "" -- empty file
+    wipeFile False path -- wipe the contents, not the file itself
     printText "Log file wiped."
 
 cmdLog' _ state = printText $
