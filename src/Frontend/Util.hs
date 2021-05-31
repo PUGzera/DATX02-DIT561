@@ -24,7 +24,7 @@ unixToWin :: String -> String
 unixToWin s = intercalate "\\" (splitOn "/" s)
 
 cd' :: String -> String -> String
-cd' ".." s = reverse $ dropWhile (/= '/') (reverse s)
+cd' ".." s = reverse $ tail $ dropWhile (/= '/') (reverse s)
 cd' d s    = s ++ "/" ++ d
 
 cd :: String -> DaisonI ()
