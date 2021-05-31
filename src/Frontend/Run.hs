@@ -21,7 +21,7 @@ import System.Directory (getCurrentDirectory, doesFileExist)
 import System.Process (createProcess, shell, cwd, waitForProcess)
 
 import Control.Concurrent (myThreadId)
-import Control.Monad (replicateM_, unless)
+import Control.Monad (replicateM_, unless, when)
 import Data.Char (toUpper)
 import Data.Maybe (fromMaybe)
 import Data.List (isPrefixOf, isSuffixOf)
@@ -58,6 +58,7 @@ initSession :: DaisonI ()
 initSession = do
     dflags <- liftGhc GHC.getSessionDynFlags
     liftGhc $ GHC.setSessionDynFlags dflags
+    when GHC.dynamicGhc $ setExtensions' "-dynamic"
     mapM_ (addImport . makeIIDecl) baseModuleNames
     mapM_ addExtension baseExtensions
     runExpr sDefineOpenDBs
@@ -186,7 +187,7 @@ setStartupArgs = do
     let databaseArgs = filter (isSuffixOf ".db") args
     unless (null newFlags) $ do
         printText $ "Attempting to set flag(s): " ++ unwords newFlags
-        setExtensions $ map (GHC.L GHC.noSrcSpan) newFlags
+        mapM_ setExtensions' newFlags
         printText $ "Flag(s) set successfully.\n"
     unless (null haskellSourceFileArg) $ do
         printText $ "Attempting to load file(s): " ++ haskellSourceFileArg
@@ -208,8 +209,11 @@ getFirstHaskellFileArg args = do
 cmdSet :: String -> DaisonI ()
 cmdSet input = do
     let arg = removeCmd input
-    setExtensions [GHC.L GHC.noSrcSpan arg]
+    setExtensions' arg
     loop
+
+setExtensions' :: String -> DaisonI ()
+setExtensions' ext = setExtensions [GHC.L GHC.noSrcSpan ext]
 
 setExtensions :: [GHC.GenLocated GHC.SrcSpan String] -> DaisonI ()
 setExtensions newExtensions = do
